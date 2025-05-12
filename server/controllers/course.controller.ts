@@ -9,13 +9,17 @@ import {
   createCourseService,
   deleteCourseService,
   editCourseService,
+  editLessonService,
   filterCoursesService,
   generateVideoUrlService,
   getAdminAllCoursesService,
   getAllCoursesService,
   getCategoriesService,
   getCourseByUserService,
+  getEnrolledUsersService,
   getSingleCourseService,
+  hideCourseService,
+  hideLessonService,
 } from "../services/course.service";
 import ErrorHandler from "../utils/ErrorHandler";
 
@@ -24,7 +28,7 @@ export const editCourse = CatchAsyncError(
     try {
       const data = req.body;
       const courseId = req.params.id;
-      const course = await editCourseService(courseId, data);
+      const course = await editCourseService(courseId, data, req.files);
 
       res.status(201).json({
         success: true,
@@ -249,6 +253,74 @@ export const addLessonToCourse = CatchAsyncError(
         success: true,
         message: "Đã thêm bài học vào khóa học thành công",
         course,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
+
+export const editLesson = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const course = await editLessonService(req.body, req.files);
+
+      res.status(200).json({
+        success: true,
+        message: "Đã cập nhật bài học thành công",
+        course,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
+
+export const hideCourse = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const courseId = req.params.id;
+      const { isHidden } = req.body;
+      const course = await hideCourseService(courseId, isHidden);
+
+      res.status(200).json({
+        success: true,
+        message: isHidden ? "Ẩn khóa học thành công" : "Hiện khóa học thành công",
+        course,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
+
+export const hideLesson = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const courseId = req.params.id;
+      const { contentId, isHidden } = req.body;
+      const course = await hideLessonService(courseId, contentId, isHidden);
+
+      res.status(200).json({
+        success: true,
+        message: isHidden ? "Ẩn bài học thành công" : "Hiện bài học thành công",
+        course,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
+
+export const getEnrolledUsers = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const courseId = req.params.id;
+      const users = await getEnrolledUsersService(courseId);
+
+      res.status(200).json({
+        success: true,
+        users,
       });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 400));

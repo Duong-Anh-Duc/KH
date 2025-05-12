@@ -94,30 +94,29 @@ export const activateUserService = async (activationData: { activation_token: st
 export const loginUserService = async (loginData: { email: string; password: string }) => {
   const { email, password } = loginData;
 
-  if (!email || !password) {
-    throw new ErrorHandler("Vui lòng nhập email và mật khẩu", 400);
+  const loginAttemptsKey = `login_attempts:${email}`;
+  const attempts = await redis.get(loginAttemptsKey);
+  const loginAttempts = attempts ? parseInt(attempts) : 0;
+
+  if (loginAttempts >= 5) {
+    throw new ErrorHandler("Tài khoản đã bị khóa do nhập sai quá nhiều lần. Vui lòng thử lại sau 30 phút.", 403);
   }
 
   const user = await userModel.findOne({ email }).select("+password");
   if (!user) {
+    await redis.set(loginAttemptsKey, (loginAttempts + 1).toString(), "EX", 1800); // Lưu số lần thử trong 30 phút
     throw new ErrorHandler("Email hoặc mật khẩu không hợp lệ", 400);
-  }
-
-  if (user.isBanned) {
-    throw new ErrorHandler("Tài khoản của bạn đã bị khóa!", 403);
   }
 
   const isPasswordMatch = await user.comparePassword(password);
   if (!isPasswordMatch) {
+    await redis.set(loginAttemptsKey, (loginAttempts + 1).toString(), "EX", 1800);
     throw new ErrorHandler("Email hoặc mật khẩu không hợp lệ", 400);
   }
 
-  // Lưu session vào Redis
+  await redis.del(loginAttemptsKey); // Reset số lần thử nếu đăng nhập thành công
   await redis.set(user._id, JSON.stringify(user));
-
-  // Tạo token
   const { accessToken, refreshToken } = generateTokens(user);
-
   return { user, accessToken, refreshToken };
 };
 

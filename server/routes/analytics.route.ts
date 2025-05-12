@@ -1,8 +1,11 @@
 import express from "express";
+import { getCoursesAnalytics, getCoursesCount, getOrderAnalytics, getOrdersCount, getUsersAnalytics, getUsersCount } from "../controllers/analytics.controller";
 import { authorizeRoles, isAutheticated } from "../middleware/auth";
-import { getCoursesAnalytics, getOrderAnalytics, getUsersAnalytics } from "../controllers/analytics.controller";
 const analyticsRouter = express.Router();
 analyticsRouter.get("/get-users-analytics", isAutheticated,authorizeRoles("admin"), getUsersAnalytics);
 analyticsRouter.get("/get-orders-analytics", isAutheticated,authorizeRoles("admin"), getOrderAnalytics);
 analyticsRouter.get("/get-courses-analytics", isAutheticated,authorizeRoles("admin"), getCoursesAnalytics);
+analyticsRouter.get("/users/count", isAutheticated, authorizeRoles("admin"), getUsersCount);
+analyticsRouter.get("/courses/count", isAutheticated, authorizeRoles("admin"), getCoursesCount);
+analyticsRouter.get("/orders/count", isAutheticated, authorizeRoles("admin"), getOrdersCount);
 export default analyticsRouter;

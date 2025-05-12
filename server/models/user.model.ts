@@ -15,8 +15,8 @@ export interface IUser extends Document {
   };
   role: string;
   isVerified: boolean;
-  isBanned : boolean;
-  courses: Array<{ courseId: string }>;
+  isBanned: boolean;
+  courses: Array<{ courseId: string; enrollmentDate: Date }>;
   favorites: Array<{ courseId: string }>;
   comparePassword: (password: string) => Promise<boolean>;
   SignAccessToken: () => string;
@@ -57,16 +57,17 @@ const userSchema: Schema<IUser> = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    isBanned: { 
+    isBanned: {
       type: Boolean,
       default: false,
     },
     courses: [
       {
         courseId: String,
+        enrollmentDate: { type: Date, default: Date.now }, // Thêm enrollmentDate
       },
     ],
-    favorites: [ 
+    favorites: [
       {
         courseId: String,
       },

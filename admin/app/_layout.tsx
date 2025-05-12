@@ -17,10 +17,8 @@ export default function RootLayout() {
     <ToastProvider>
       <AuthProvider>
         <Stack screenOptions={{ headerShown: false }}>
-          {/* Nhóm các route thuộc (auth) */}
           <Stack.Screen name="(auth)" />
 
-          {/* Nhóm các route thuộc (admin) */}
           <Stack.Screen name="(admin)" />
         </Stack>
       </AuthProvider>

@@ -11,10 +11,10 @@ const redisClient = () => {
   };
 
   if (process.env.REDIS_URL) {
+    console.log(process.env.REDIS_URL)
     console.log("Redis connected");
     return new Redis(process.env.REDIS_URL, redisOptions);
   }
-
   throw new Error("Redis connection failed: No REDIS_URL provided");
 };
 

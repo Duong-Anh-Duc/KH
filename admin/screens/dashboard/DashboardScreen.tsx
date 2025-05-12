@@ -1,4 +1,3 @@
-// app/(admin)/dashboard/index.tsx
 import { useAuth } from '@/context/AuthContext';
 import { dashboardStyles } from '@/styles/dashboard/dashboard.styles';
 import api from '@/utils/api';
@@ -13,6 +12,7 @@ const DashboardScreen = () => {
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalCourses: 0,
+    totalOrders: 0,
   });
   const [loading, setLoading] = useState(true);
   const { user, logout } = useAuth();
@@ -35,13 +35,15 @@ const DashboardScreen = () => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const [usersRes, coursesRes] = await Promise.all([
+        const [usersRes, coursesRes, ordersRes] = await Promise.all([
           api.get("/users/count"),
           api.get("/courses/count"),
+          api.get("/orders/count"),
         ]);
         setStats({
           totalUsers: usersRes.data.count || 0,
           totalCourses: coursesRes.data.count || 0,
+          totalOrders: ordersRes.data.count || 0,
         });
       } catch (error: any) {
         Toast.show("Không thể tải dữ liệu thống kê!", {
@@ -104,6 +106,14 @@ const DashboardScreen = () => {
           {stats.totalCourses}
         </Text>
       </View>
+      <View style={dashboardStyles.card}>
+        <Text style={[dashboardStyles.cardTitle, { fontFamily: "Nunito_700Bold" }]}>
+          Tổng số hóa đơn
+        </Text>
+        <Text style={[dashboardStyles.cardValue, { fontFamily: "Nunito_600SemiBold" }]}>
+          {stats.totalOrders}
+        </Text>
+      </View>
       <TouchableOpacity
         style={dashboardStyles.button}
         onPress={() => router.push("/(admin)/manage-courses")}
@@ -118,6 +128,30 @@ const DashboardScreen = () => {
       >
         <Text style={[dashboardStyles.buttonText, { fontFamily: "Nunito_600SemiBold" }]}>
           Quản Lý Người Dùng
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={dashboardStyles.button}
+        onPress={() => router.push("/(admin)/manage-categories" as any)}
+      >
+        <Text style={[dashboardStyles.buttonText, { fontFamily: "Nunito_600SemiBold" }]}>
+          Quản Lý Danh Mục
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={dashboardStyles.button}
+        onPress={() => router.push("/(admin)/manage-orders" as any)}
+      >
+        <Text style={[dashboardStyles.buttonText, { fontFamily: "Nunito_600SemiBold" }]}>
+          Quản Lý Hóa Đơn
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={dashboardStyles.button}
+        onPress={() => router.push("/(admin)/manage-comments" as any)}
+      >
+        <Text style={[dashboardStyles.buttonText, { fontFamily: "Nunito_600SemiBold" }]}>
+          Quản Lý Comment
         </Text>
       </TouchableOpacity>
       <TouchableOpacity

@@ -6,34 +6,47 @@ import mongoose from "mongoose";
 import path from "path";
 import CourseModel, { ICourseData } from "../models/course.model";
 import NotificationModel from "../models/notification.Model";
+import userModel from "../models/user.model";
 import { io } from "../server";
 import ErrorHandler from "../utils/ErrorHandler";
 import { redis } from "../utils/redis";
 import sendMail from "../utils/sendMail";
 
-export const editCourseService = async (courseId: string, data: any) => {
+// Interface cho videoThumbnail
+interface CloudinaryResource {
+  public_id: string;
+  url: string;
+}
+
+export const editCourseService = async (courseId: string, data: any, files: any) => {
   const courseData = await CourseModel.findById(courseId) as any;
   if (!courseData) {
     throw new ErrorHandler("Khóa học không tồn tại", 404);
   }
 
-  const thumbnail = data.thumbnail;
+  const thumbnail = files?.thumbnail;
   if (thumbnail) {
-    if (!thumbnail.startsWith("https")) {
-      await cloudinary.v2.uploader.destroy(courseData.thumbnail.public_id);
-      const myCloud = await cloudinary.v2.uploader.upload(thumbnail, {
-        folder: "courses",
-      });
-      data.thumbnail = {
-        public_id: myCloud.public_id,
-        url: myCloud.secure_url,
-      };
-    } else {
-      data.thumbnail = {
-        public_id: courseData?.thumbnail.public_id,
-        url: courseData?.thumbnail.url,
-      };
-    }
+    await cloudinary.v2.uploader.destroy(courseData.thumbnail.public_id);
+    const myCloud = await cloudinary.v2.uploader.upload(thumbnail[0].path, {
+      folder: "courses/thumbnails",
+      resource_type: "image",
+    });
+    data.thumbnail = {
+      public_id: myCloud.public_id,
+      url: myCloud.secure_url,
+    };
+    fs.unlinkSync(thumbnail[0].path);
+  }
+
+  const demoVideo = files?.demoVideo;
+  if (demoVideo) {
+    await cloudinary.v2.uploader.destroy(courseData.demoUrl, { resource_type: "video" });
+    const myCloud = await cloudinary.v2.uploader.upload(demoVideo[0].path, {
+      folder: "courses/videos",
+      resource_type: "video",
+    });
+    data.demoUrl = myCloud.secure_url;
+    fs.unlinkSync(demoVideo[0].path);
   }
 
   const course = await CourseModel.findByIdAndUpdate(
@@ -402,7 +415,7 @@ export const createCourseService = async (data: any, files: any) => {
     throw new ErrorHandler("Vui lòng cung cấp đầy đủ các trường bắt buộc", 400);
   }
 
-  let thumbnail = {};
+  let thumbnail: CloudinaryResource = { public_id: "", url: "" };
   if (files && files.thumbnail) {
     const thumbnailFile = files.thumbnail[0];
     const myCloud = await cloudinary.v2.uploader.upload(thumbnailFile.path, {
@@ -497,7 +510,7 @@ export const addLessonToCourseService = async (data: any, files: any) => {
     fs.unlinkSync(videoFile.path);
   }
 
-  let videoThumbnail = {};
+  let videoThumbnail: CloudinaryResource = { public_id: "", url: "" };
   if (files && files.thumbnailFile) {
     const thumbnailFile = files.thumbnailFile[0];
     const myCloud = await cloudinary.v2.uploader.upload(thumbnailFile.path, {
@@ -530,4 +543,125 @@ export const addLessonToCourseService = async (data: any, files: any) => {
   await redis.set(course._id.toString(), JSON.stringify(course), "EX", 604800);
 
   return course;
+};
+
+export const editLessonService = async (data: any, files: any) => {
+  const { courseId, lessonId, title, description, videoSection, videoLength, videoPlayer, links, suggestion, questions } = data;
+
+  if (!courseId || !lessonId || !title || !description || !videoSection || !videoLength || !videoPlayer) {
+    throw new ErrorHandler("Vui lòng cung cấp đầy đủ các trường bắt buộc cho bài học", 400);
+  }
+
+  const course = await CourseModel.findById(courseId);
+  if (!course) {
+    throw new ErrorHandler("Không tìm thấy khóa học", 404);
+  }
+
+  const lessonIndex = course.courseData.findIndex((item: any) => item._id.toString() === lessonId);
+  if (lessonIndex === -1) {
+    throw new ErrorHandler("Không tìm thấy bài học", 404);
+  }
+
+  let videoUrl = course.courseData[lessonIndex].videoUrl;
+  if (files && files.videoFile) {
+    if (videoUrl) {
+      const videoPublicId = videoUrl.split("/").pop()?.split(".")[0];
+      if (videoPublicId) {
+        await cloudinary.v2.uploader.destroy(videoPublicId, { resource_type: "video" });
+      }
+    }
+    const videoFile = files.videoFile[0];
+    const myCloud = await cloudinary.v2.uploader.upload(videoFile.path, {
+      folder: "courses/videos",
+      resource_type: "video",
+    });
+    videoUrl = myCloud.secure_url;
+    fs.unlinkSync(videoFile.path);
+  }
+
+  let videoThumbnail: CloudinaryResource = course.courseData[lessonIndex].videoThumbnail || { public_id: "", url: "" };
+  if (files && files.thumbnailFile) {
+    if (videoThumbnail.public_id) {
+      await cloudinary.v2.uploader.destroy(videoThumbnail.public_id);
+    }
+    const thumbnailFile = files.thumbnailFile[0];
+    const myCloud = await cloudinary.v2.uploader.upload(thumbnailFile.path, {
+      folder: "courses/thumbnails",
+      resource_type: "image",
+    });
+    videoThumbnail = {
+      public_id: myCloud.public_id,
+      url: myCloud.secure_url,
+    };
+    fs.unlinkSync(thumbnailFile.path);
+  }
+
+  // Cập nhật từng thuộc tính thay vì gán object mới
+  course.courseData[lessonIndex].title = title;
+  course.courseData[lessonIndex].description = description;
+  course.courseData[lessonIndex].videoUrl = videoUrl;
+  course.courseData[lessonIndex].videoSection = videoSection;
+  course.courseData[lessonIndex].videoLength = Number(videoLength);
+  course.courseData[lessonIndex].videoPlayer = videoPlayer;
+  course.courseData[lessonIndex].links = links ? JSON.parse(links) : [];
+  course.courseData[lessonIndex].suggestion = suggestion || "";
+  course.courseData[lessonIndex].questions = questions ? JSON.parse(questions) : [];
+  course.courseData[lessonIndex].videoThumbnail = videoThumbnail;
+
+  await course.save();
+  await redis.set(course._id.toString(), JSON.stringify(course), "EX", 604800);
+
+  return course;
+};
+
+export const hideCourseService = async (courseId: string, isHidden: boolean) => {
+  const course = await CourseModel.findById(courseId);
+  if (!course) {
+    throw new ErrorHandler("Khóa học không tồn tại", 404);
+  }
+
+  course.isHidden = isHidden;
+  await course.save();
+  await redis.set(courseId, JSON.stringify(course), "EX", 604800);
+
+  return course;
+};
+
+export const hideLessonService = async (courseId: string, contentId: string, isHidden: boolean) => {
+  const course = await CourseModel.findById(courseId);
+  if (!course) {
+    throw new ErrorHandler("Khóa học không tồn tại", 404);
+  }
+
+  const lessonIndex = course.courseData.findIndex((item: any) => item._id.toString() === contentId);
+  if (lessonIndex === -1) {
+    throw new ErrorHandler("Không tìm thấy bài học", 404);
+  }
+
+  course.courseData[lessonIndex].isHidden = isHidden;
+  await course.save();
+  await redis.set(courseId, JSON.stringify(course), "EX", 604800);
+
+  return course;
+};
+
+export const getEnrolledUsersService = async (courseId: string) => {
+  const course = await CourseModel.findById(courseId);
+  if (!course) {
+    throw new ErrorHandler("Khóa học không tồn tại", 404);
+  }
+
+  const users = await userModel.find({
+    "courses.courseId": courseId,
+  }).select("name email courses");
+
+  return users.map(user => {
+    const courseEntry = user.courses.find((c: any) => c.courseId.toString() === courseId);
+    return {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      enrollmentDate: courseEntry?.enrollmentDate || new Date(),
+    };
+  });
 };

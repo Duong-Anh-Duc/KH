@@ -83,9 +83,13 @@ export const createMobileOrderService = async (data: CreateMobileOrderData) => {
     status: formattedPaymentInfo.status === "succeeded" ? "Completed" : "Failed",
   });
 
+  // Sửa đoạn code này: Thêm enrollmentDate khi đẩy vào user.courses
   coursesInCart.forEach((course) => {
     if (course.courseId) {
-      user.courses.push({ courseId: course.courseId });
+      user.courses.push({ 
+        courseId: course.courseId,
+        enrollmentDate: new Date(), // Thêm enrollmentDate
+      });
     }
   });
 

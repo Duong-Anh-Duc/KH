@@ -1,12 +1,24 @@
-// components/AdminNavbar.tsx
 import { Ionicons } from "@expo/vector-icons";
+import {
+  DrawerDescriptorMap,
+  DrawerNavigationHelpers,
+  DrawerNavigationState,
+} from "@react-navigation/drawer";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Toast } from "react-native-toast-notifications";
 import { useAuth } from "../context/AuthContext";
 
-const AdminNavbar = () => {
+// Define the props type for the drawerContent component
+type DrawerContentProps = {
+  state: DrawerNavigationState<any>;
+  navigation: DrawerNavigationHelpers;
+  descriptors: DrawerDescriptorMap;
+};
+
+// Update the AdminNavbar component to accept DrawerContentProps
+const AdminNavbar = ({ state, navigation }: DrawerContentProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const { logout } = useAuth();
   const slideAnim = useState(new Animated.Value(-250))[0]; // Giá trị ban đầu: navbar ẩn
@@ -21,13 +33,25 @@ const AdminNavbar = () => {
   };
 
   const handleLogout = async () => {
-    await logout();
-    Toast.show("Đăng xuất thành công!", {
-      type: "success",
-      placement: "top",
-      duration: 3000,
-    });
-    router.replace("/(auth)/login");
+    Alert.alert(
+      "Xác nhận đăng xuất",
+      "Bạn có chắc chắn muốn đăng xuất?",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Đăng xuất",
+          onPress: async () => {
+            await logout();
+            Toast.show("Đăng xuất thành công!", {
+              type: "success",
+              placement: "top",
+              duration: 3000,
+            });
+            router.replace("/(auth)/login");
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -46,7 +70,7 @@ const AdminNavbar = () => {
           style={styles.navbarItem}
           onPress={() => {
             router.push("/(admin)/dashboard");
-            toggleNavbar(); // Đóng navbar sau khi chọn
+            toggleNavbar();
           }}
         >
           <Ionicons name="stats-chart-outline" size={24} color="#fff" />
@@ -71,6 +95,46 @@ const AdminNavbar = () => {
         >
           <Ionicons name="people-outline" size={24} color="#fff" />
           <Text style={styles.navbarText}>Quản Lý Người Dùng</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.navbarItem}
+          onPress={() => {
+            router.push("/(admin)/manage-categories");
+            toggleNavbar();
+          }}
+        >
+          <Ionicons name="list-outline" size={24} color="#fff" />
+          <Text style={styles.navbarText}>Quản Lý Danh Mục</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.navbarItem}
+          onPress={() => {
+            router.push("/(admin)/manage-orders");
+            toggleNavbar();
+          }}
+        >
+          <Ionicons name="receipt-outline" size={24} color="#fff" />
+          <Text style={styles.navbarText}>Quản Lý Hóa Đơn</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.navbarItem}
+          onPress={() => {
+            router.push("/(admin)/manage-comments");
+            toggleNavbar();
+          }}
+        >
+          <Ionicons name="chatbox-outline" size={24} color="#fff" />
+          <Text style={styles.navbarText}>Quản Lý Comment</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.navbarItem}
+          onPress={() => {
+            router.push("/(admin)/change-password");
+            toggleNavbar();
+          }}
+        >
+          <Ionicons name="lock-closed-outline" size={24} color="#fff" />
+          <Text style={styles.navbarText}>Đổi Mật Khẩu</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.navbarItem, styles.logoutItem]}
