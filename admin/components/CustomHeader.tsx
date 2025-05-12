@@ -1,7 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { theme } from "@/styles/theme";
 import { Ionicons } from "@expo/vector-icons";
-import { DrawerNavigationProp } from "@react-navigation/drawer";
+import { DrawerNavigationProp, useDrawerStatus } from "@react-navigation/drawer";
 import { router } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -30,12 +30,12 @@ type CustomHeaderProps = {
 };
 
 const CustomHeader = ({ title, navigation }: CustomHeaderProps) => {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isInteracting, setIsInteracting] = useState(false); // Trạng thái khi người dùng tương tác (ấn giữ)
+  const drawerStatus = useDrawerStatus(); // Lấy trạng thái drawer (open/closed)
+  const isDrawerOpen = drawerStatus === "open"; // Đồng bộ trạng thái drawer
+  const [isInteracting, setIsInteracting] = useState(false); // Trạng thái khi người dùng tương tác
   const { logout } = useAuth();
 
   const toggleDrawer = () => {
-    setIsDrawerOpen(!isDrawerOpen);
     if (isDrawerOpen) {
       navigation.closeDrawer();
     } else {
@@ -58,14 +58,14 @@ const CustomHeader = ({ title, navigation }: CustomHeaderProps) => {
       <TouchableOpacity
         style={styles.headerButton}
         onPress={toggleDrawer}
-        onPressIn={() => setIsInteracting(true)} // Khi người dùng bắt đầu ấn
-        onPressOut={() => setIsInteracting(false)} // Khi người dùng thả tay
+        onPressIn={() => setIsInteracting(true)}
+        onPressOut={() => setIsInteracting(false)}
       >
         <Ionicons
           name={isDrawerOpen ? "close" : "menu"}
           size={30}
           color={theme.colors.white}
-          style={{ opacity: isInteracting ? 1 : 0.5 }} // Hiệu ứng mờ khi không tương tác
+          style={{ opacity: isInteracting ? 1 : 0.5 }}
         />
       </TouchableOpacity>
       <Text style={styles.headerTitle}>{title}</Text>
