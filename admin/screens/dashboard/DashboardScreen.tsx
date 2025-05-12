@@ -1,12 +1,32 @@
-import { useAuth } from '@/context/AuthContext';
-import { dashboardStyles } from '@/styles/dashboard/dashboard.styles';
-import api from '@/utils/api';
+import CustomHeader from "@/components/CustomHeader";
+import { useAuth } from "@/context/AuthContext";
+import { dashboardStyles } from "@/styles/dashboard/dashboard.styles";
+import { theme } from "@/styles/theme";
+import api from "@/utils/api";
 import { Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
 import { Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway';
+import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { router, useNavigation } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Toast } from 'react-native-toast-notifications';
+
+// Định nghĩa ParamList cho DrawerNavigator
+type DrawerParamList = {
+  dashboard: undefined;
+  "manage-courses": undefined;
+  "manage-courses/course-details": undefined;
+  "manage-users": undefined;
+  "manage-categories": undefined;
+  "manage-orders": undefined;
+  "manage-comments": undefined;
+  "change-password": undefined;
+  "create-course": undefined;
+  "create-lesson": undefined;
+  "edit-course": undefined;
+  "edit-lesson": undefined;
+  "enrolled-users": undefined;
+};
 
 const DashboardScreen = () => {
   const [stats, setStats] = useState({
@@ -15,8 +35,8 @@ const DashboardScreen = () => {
     totalOrders: 0,
   });
   const [loading, setLoading] = useState(true);
-  const { user, logout } = useAuth();
-  const navigation = useNavigation();
+  const { user } = useAuth();
+  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
 
   let [fontsLoaded, fontError] = useFonts({
     Raleway_700Bold,
@@ -24,12 +44,6 @@ const DashboardScreen = () => {
     Nunito_600SemiBold,
     Nunito_700Bold,
   });
-
-  useEffect(() => {
-    navigation.setOptions({
-      title: "Admin Dashboard",
-    });
-  }, [navigation]);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -69,101 +83,60 @@ const DashboardScreen = () => {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#009990" />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.colors.background }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
-  const handleLogout = async () => {
-    await logout();
-    Toast.show("Đăng xuất thành công!", {
-      type: "success",
-      placement: "top",
-      duration: 3000,
-    });
-    router.replace("/(auth)/login");
-  };
-
   return (
-    <ScrollView style={dashboardStyles.container}>
-      <Text style={[dashboardStyles.welcomeText, { fontFamily: "Raleway_700Bold" }]}>
-        Chào mừng, {user?.email}!
-      </Text>
-      <View style={dashboardStyles.card}>
-        <Text style={[dashboardStyles.cardTitle, { fontFamily: "Nunito_700Bold" }]}>
-          Tổng số người dùng
-        </Text>
-        <Text style={[dashboardStyles.cardValue, { fontFamily: "Nunito_600SemiBold" }]}>
-          {stats.totalUsers}
-        </Text>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        {/* Sử dụng CustomHeader */}
+        <CustomHeader title="Admin Dashboard" navigation={navigation} />
+        <ScrollView style={[dashboardStyles.container, { backgroundColor: theme.colors.background }]}>
+          <Text style={[dashboardStyles.welcomeText, { fontFamily: "Raleway_700Bold" }]}>
+            Chào mừng, {user?.email}!
+          </Text>
+          <View style={dashboardStyles.card}>
+            <Text style={[dashboardStyles.cardTitle, { fontFamily: "Nunito_700Bold" }]}>
+              Tổng số người dùng
+            </Text>
+            <Text style={[dashboardStyles.cardValue, { fontFamily: "Nunito_600SemiBold" }]}>
+              {stats.totalUsers}
+            </Text>
+          </View>
+          <View style={dashboardStyles.card}>
+            <Text style={[dashboardStyles.cardTitle, { fontFamily: "Nunito_700Bold" }]}>
+              Tổng số khóa học
+            </Text>
+            <Text style={[dashboardStyles.cardValue, { fontFamily: "Nunito_600SemiBold" }]}>
+              {stats.totalCourses}
+            </Text>
+          </View>
+          <View style={dashboardStyles.card}>
+            <Text style={[dashboardStyles.cardTitle, { fontFamily: "Nunito_700Bold" }]}>
+              Tổng số hóa đơn
+            </Text>
+            <Text style={[dashboardStyles.cardValue, { fontFamily: "Nunito_600SemiBold" }]}>
+              {stats.totalOrders}
+            </Text>
+          </View>
+        </ScrollView>
       </View>
-      <View style={dashboardStyles.card}>
-        <Text style={[dashboardStyles.cardTitle, { fontFamily: "Nunito_700Bold" }]}>
-          Tổng số khóa học
-        </Text>
-        <Text style={[dashboardStyles.cardValue, { fontFamily: "Nunito_600SemiBold" }]}>
-          {stats.totalCourses}
-        </Text>
-      </View>
-      <View style={dashboardStyles.card}>
-        <Text style={[dashboardStyles.cardTitle, { fontFamily: "Nunito_700Bold" }]}>
-          Tổng số hóa đơn
-        </Text>
-        <Text style={[dashboardStyles.cardValue, { fontFamily: "Nunito_600SemiBold" }]}>
-          {stats.totalOrders}
-        </Text>
-      </View>
-      <TouchableOpacity
-        style={dashboardStyles.button}
-        onPress={() => router.push("/(admin)/manage-courses")}
-      >
-        <Text style={[dashboardStyles.buttonText, { fontFamily: "Nunito_600SemiBold" }]}>
-          Quản Lý Khóa Học
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={dashboardStyles.button}
-        onPress={() => router.push("/(admin)/manage-users")}
-      >
-        <Text style={[dashboardStyles.buttonText, { fontFamily: "Nunito_600SemiBold" }]}>
-          Quản Lý Người Dùng
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={dashboardStyles.button}
-        onPress={() => router.push("/(admin)/manage-categories" as any)}
-      >
-        <Text style={[dashboardStyles.buttonText, { fontFamily: "Nunito_600SemiBold" }]}>
-          Quản Lý Danh Mục
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={dashboardStyles.button}
-        onPress={() => router.push("/(admin)/manage-orders" as any)}
-      >
-        <Text style={[dashboardStyles.buttonText, { fontFamily: "Nunito_600SemiBold" }]}>
-          Quản Lý Hóa Đơn
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={dashboardStyles.button}
-        onPress={() => router.push("/(admin)/manage-comments" as any)}
-      >
-        <Text style={[dashboardStyles.buttonText, { fontFamily: "Nunito_600SemiBold" }]}>
-          Quản Lý Comment
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={dashboardStyles.logoutButton}
-        onPress={handleLogout}
-      >
-        <Text style={[dashboardStyles.buttonText, { fontFamily: "Nunito_600SemiBold" }]}>
-          Đăng Xuất
-        </Text>
-      </TouchableOpacity>
-    </ScrollView>
+    </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+});
 
 export default DashboardScreen;

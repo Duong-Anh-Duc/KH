@@ -16,10 +16,10 @@ import {
   getAllCourses,
   getCategories,
   getCourseByUser,
+  getEnrolledUsers,
   getSingleCourse,
   hideCourse,
   hideLesson,
-  getEnrolledUsers,
 } from "../controllers/course.controller";
 import { authorizeRoles, isAutheticated } from "../middleware/auth";
 

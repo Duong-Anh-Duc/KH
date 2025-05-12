@@ -1,13 +1,32 @@
+import CustomHeader from "@/components/CustomHeader";
 import { dashboardStyles } from "@/styles/dashboard/dashboard.styles";
+import { theme } from "@/styles/theme";
 import api from "@/utils/api";
 import { Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
 import { Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway';
-import { Link } from "expo-router";
+import { DrawerNavigationProp } from '@react-navigation/drawer';
+import { Link, useNavigation } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native"; // Thêm StyleSheet vào import
+import { ActivityIndicator, Alert, FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Toast } from "react-native-toast-notifications";
 
-// Component wrapper để xử lý tải font
+// Định nghĩa ParamList cho DrawerNavigator
+type DrawerParamList = {
+  dashboard: undefined;
+  "manage-courses": undefined;
+  "manage-courses/course-details": undefined;
+  "manage-users": undefined;
+  "manage-categories": undefined;
+  "manage-orders": undefined;
+  "manage-comments": undefined;
+  "change-password": undefined;
+  "create-course": undefined;
+  "create-lesson": undefined;
+  "edit-course": undefined;
+  "edit-lesson": undefined;
+  "enrolled-users": undefined;
+};
+
 const FontLoader = ({ children }: { children: React.ReactNode }) => {
   const [fontsLoaded, fontError] = useFonts({
     Raleway_700Bold,
@@ -18,11 +37,8 @@ const FontLoader = ({ children }: { children: React.ReactNode }) => {
 
   if (!fontsLoaded && !fontError) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#009990" />
-        <Text style={{ marginTop: 10, fontSize: 16, color: "#333" }}>
-          Đang tải font...
-        </Text>
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -57,6 +73,7 @@ const CourseManagementScreen = () => {
   const [courses, setCourses] = useState<CoursesType[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
 
   const fetchCourses = async () => {
     try {
@@ -79,7 +96,7 @@ const CourseManagementScreen = () => {
   const handleHideCourse = async (courseId: string, isHidden: boolean) => {
     try {
       await api.put(`/hide-course/${courseId}`, { isHidden: !isHidden });
-      setCourses(courses.map((course) => 
+      setCourses(courses.map((course) =>
         course._id === courseId ? { ...course, isHidden: !isHidden } : course
       ));
       Toast.show(isHidden ? "Hiện khóa học thành công!" : "Ẩn khóa học thành công!", { type: "success" });
@@ -120,104 +137,168 @@ const CourseManagementScreen = () => {
 
   return (
     <FontLoader>
-      {loading ? (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <ActivityIndicator size="large" color="#009990" />
-        </View>
-      ) : (
-        <View style={dashboardStyles.container}>
-          <Text style={[dashboardStyles.welcomeText, { fontFamily: "Raleway_700Bold" }]}>
-            Quản Lý Khóa Học
-          </Text>
-          <TouchableOpacity style={dashboardStyles.button}>
-            <Link href="/(admin)/create-course">
-              <Text style={[dashboardStyles.buttonText, { fontFamily: "Nunito_600SemiBold" }]}>
-                Tạo Khóa Học Mới
-              </Text>
-            </Link>
-          </TouchableOpacity>
-          <FlatList
-            data={courses}
-            keyExtractor={(item) => item._id}
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            renderItem={({ item }) => (
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  padding: 10,
-                  borderBottomWidth: 1,
-                  borderBottomColor: "#ccc",
-                  backgroundColor: item.isHidden ? "#f0f0f0" : "white",
-                }}
-              >
-                <View>
-                  <Text style={{ fontFamily: "Nunito_400Regular" }}>{item.name}</Text>
-                  <Text style={{ fontFamily: "Nunito_400Regular", color: "#575757", fontSize: 12 }}>
-                    Giá: {item.price.toFixed(2)} VNĐ | Học viên: {item.purchased}
+      <SafeAreaView style={styles.safeArea}>
+        {loading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+          </View>
+        ) : (
+          <View style={styles.container}>
+            <CustomHeader title="Quản Lý Khóa Học" navigation={navigation} />
+            <View style={[dashboardStyles.container, styles.contentContainer]}>
+              <TouchableOpacity style={[styles.button, { backgroundColor: theme.colors.primary }]}>
+                <Link href="/(admin)/create-course">
+                  <Text style={styles.buttonText}>
+                    Tạo Khóa Học Mới
                   </Text>
-                </View>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <TouchableOpacity style={{ backgroundColor: "#2467EC", padding: 5, borderRadius: 5, marginRight: 5 }}>
-                    <Link href={{ pathname: "/(admin)/manage-courses/course-details", params: { courseId: item._id } }}>
-                      <Text style={{ color: "white", fontFamily: "Nunito_600SemiBold" }}>Xem</Text>
-                    </Link>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={{ backgroundColor: "#009990", padding: 5, borderRadius: 5, marginRight: 5 }}>
-                    <Link href={{ pathname: "/(admin)/edit-course", params: { courseId: item._id } }}>
-                      <Text style={{ color: "white", fontFamily: "Nunito_600SemiBold" }}>Sửa</Text>
-                    </Link>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={{ backgroundColor: item.isHidden ? "green" : "gray", padding: 5, borderRadius: 5, marginRight: 5 }}
-                    onPress={() => handleHideCourse(item._id, item.isHidden)}
+                </Link>
+              </TouchableOpacity>
+              <FlatList
+                data={courses}
+                keyExtractor={(item) => item._id}
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                renderItem={({ item }) => (
+                  <View
+                    style={[
+                      styles.courseCard,
+                      { backgroundColor: item.isHidden ? theme.colors.disabled : theme.colors.white },
+                    ]}
                   >
-                    <Text style={{ color: "white", fontFamily: "Nunito_600SemiBold" }}>{item.isHidden ? "Hiện" : "Ẩn"}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={{ backgroundColor: "red", padding: 5, borderRadius: 5 }}
-                    onPress={() => handleDeleteCourse(item._id)}
-                  >
-                    <Text style={{ color: "white", fontFamily: "Nunito_600SemiBold" }}>Xóa</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-            ListEmptyComponent={
-              <Text style={{ fontFamily: "Nunito_400Regular", textAlign: "center", marginTop: 20 }}>
-                Không có khóa học nào để hiển thị.
-              </Text>
-            }
-          />
-        </View>
-      )}
+                    <View style={styles.courseInfo}>
+                      <Text style={styles.courseTitle}>
+                        {item.name}
+                      </Text>
+                      <Text style={styles.courseDetails}>
+                        Giá: {item.price.toFixed(2)} VNĐ | Học viên: {item.purchased}
+                      </Text>
+                    </View>
+                    <View style={styles.courseActions}>
+                      <TouchableOpacity style={[styles.actionButton, { backgroundColor: theme.colors.secondary }]}>
+                        <Link href={{ pathname: "/(admin)/manage-courses/course-details", params: { courseId: item._id } }}>
+                          <Text style={styles.actionButtonText}>Xem</Text>
+                        </Link>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}>
+                        <Link href={{ pathname: "/(admin)/edit-course", params: { courseId: item._id } }}>
+                          <Text style={styles.actionButtonText}>Sửa</Text>
+                        </Link>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: item.isHidden ? theme.colors.success : theme.colors.disabled }]}
+                        onPress={() => handleHideCourse(item._id, item.isHidden)}
+                      >
+                        <Text style={styles.actionButtonText}>{item.isHidden ? "Hiện" : "Ẩn"}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: theme.colors.error }]}
+                        onPress={() => handleDeleteCourse(item._id)}
+                      >
+                        <Text style={styles.actionButtonText}>Xóa</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+                ListEmptyComponent={
+                  <Text style={styles.emptyText}>
+                    Không có khóa học nào để hiển thị.
+                  </Text>
+                }
+              />
+            </View>
+          </View>
+        )}
+      </SafeAreaView>
     </FontLoader>
   );
 };
 
-export default CourseManagementScreen;
-
 const styles = StyleSheet.create({
-  errorContainer: {
-    position: "absolute",
-    top: 50,
-    left: 16,
-    right: 16,
-    backgroundColor: "#FF6347",
-    padding: 10,
-    borderRadius: 8,
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  contentContainer: {
+    paddingHorizontal: theme.spacing.medium,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: theme.colors.background,
+  },
+  button: {
+    borderRadius: theme.borderRadius.medium,
+    paddingVertical: theme.spacing.medium,
+    marginBottom: theme.spacing.medium,
+    elevation: theme.elevation.small,
+    shadowColor: theme.colors.text,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    alignItems: "center",
+  },
+  buttonText: {
+    fontFamily: theme.typography.fontFamily.semiBold,
+    fontSize: theme.typography.fontSize.button,
+    color: theme.colors.white,
+  },
+  courseCard: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    zIndex: 1000,
+    padding: theme.spacing.medium,
+    borderRadius: theme.borderRadius.medium,
+    marginBottom: theme.spacing.small,
+    elevation: theme.elevation.small,
+    shadowColor: theme.colors.text,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
-  errorText: {
-    color: "#fff",
-    fontSize: 14,
-    fontFamily: "Nunito_600SemiBold",
+  courseInfo: {
+    flex: 1,
+    marginRight: theme.spacing.medium,
   },
-  clearErrorButton: {
-    padding: 5,
+  courseTitle: {
+    fontFamily: theme.typography.fontFamily.semiBold,
+    fontSize: theme.typography.fontSize.body,
+    color: theme.colors.text,
+  },
+  courseDetails: {
+    fontFamily: theme.typography.fontFamily.regular,
+    fontSize: theme.typography.fontSize.caption,
+    color: theme.colors.textSecondary,
+    marginTop: theme.spacing.small,
+  },
+  courseActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+  },
+  actionButton: {
+    paddingVertical: theme.spacing.small,
+    paddingHorizontal: theme.spacing.medium,
+    borderRadius: theme.borderRadius.small,
+    marginLeft: theme.spacing.small,
+    marginBottom: theme.spacing.small,
+  },
+  actionButtonText: {
+    fontFamily: theme.typography.fontFamily.semiBold,
+    fontSize: theme.typography.fontSize.caption,
+    color: theme.colors.white,
+  },
+  emptyText: {
+    fontFamily: theme.typography.fontFamily.regular,
+    fontSize: theme.typography.fontSize.body,
+    color: theme.colors.textSecondary,
+    textAlign: "center",
+    marginTop: theme.spacing.large,
   },
 });
+
+export default CourseManagementScreen;

@@ -1,17 +1,36 @@
-// app/(admin)/manage-users/index.tsx
+import CustomHeader from "@/components/CustomHeader";
 import api from "@/utils/api";
 import { Ionicons } from "@expo/vector-icons";
+import { DrawerNavigationProp } from "@react-navigation/drawer";
 import { useNavigation } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { Toast } from "react-native-toast-notifications";
+
+// Định nghĩa ParamList cho DrawerNavigator
+type DrawerParamList = {
+  dashboard: undefined;
+  "manage-courses": undefined;
+  "manage-courses/course-details": undefined;
+  "manage-users": undefined;
+  "manage-categories": undefined;
+  "manage-orders": undefined;
+  "manage-comments": undefined;
+  "change-password": undefined;
+  "create-course": undefined;
+  "create-lesson": undefined;
+  "edit-course": undefined;
+  "edit-lesson": undefined;
+  "enrolled-users": undefined;
+};
 
 interface User {
   _id: string;
@@ -23,16 +42,10 @@ interface User {
 }
 
 const ManageUsers = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  useEffect(() => {
-    navigation.setOptions({
-      title: "Quản Lý Người Dùng",
-    });
-  }, [navigation]);
 
   const fetchUsers = async () => {
     try {
@@ -89,7 +102,7 @@ const ManageUsers = () => {
 
   const handleBanUser = async (userId: string, currentBanStatus: boolean) => {
     try {
-      const newBanStatus = !currentBanStatus; // Đảo ngược trạng thái ban
+      const newBanStatus = !currentBanStatus;
       await api.put(`/ban-user/${userId}`, { isBanned: newBanStatus });
 
       Toast.show(
@@ -179,29 +192,35 @@ const ManageUsers = () => {
   }
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={users}
-        renderItem={renderUserItem}
-        keyExtractor={(item) => item._id}
-        refreshing={refreshing}
-        onRefresh={handleRefresh}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Không có người dùng nào!</Text>
-          </View>
-        }
-      />
-    </View>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <CustomHeader title="Quản Lý Người Dùng" navigation={navigation} />
+        <FlatList
+          data={users}
+          renderItem={renderUserItem}
+          keyExtractor={(item) => item._id}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Không có người dùng nào!</Text>
+            </View>
+          }
+        />
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#F6F7F9",
+  },
   container: {
     flex: 1,
     backgroundColor: "#F6F7F9",
     paddingHorizontal: 16,
-    paddingTop: 20,
   },
   loadingContainer: {
     flex: 1,

@@ -1,14 +1,33 @@
+import CustomHeader from "@/components/CustomHeader";
 import { dashboardStyles } from "@/styles/dashboard/dashboard.styles";
+import { theme } from "@/styles/theme";
 import api from "@/utils/api";
 import { Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
 import { Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway';
+import { DrawerNavigationProp } from '@react-navigation/drawer';
 import * as VideoPicker from "expo-image-picker";
-import { Link, router, useLocalSearchParams } from "expo-router";
+import { Link, router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Toast } from "react-native-toast-notifications";
 
-// Định nghĩa kiểu cho lessonData
+// Định nghĩa ParamList cho DrawerNavigator
+type DrawerParamList = {
+  dashboard: undefined;
+  "manage-courses": undefined;
+  "manage-courses/course-details": undefined;
+  "manage-users": undefined;
+  "manage-categories": undefined;
+  "manage-orders": undefined;
+  "manage-comments": undefined;
+  "change-password": undefined;
+  "create-course": undefined;
+  "create-lesson": undefined;
+  "edit-course": undefined;
+  "edit-lesson": undefined;
+  "enrolled-users": undefined;
+};
+
 interface LessonData {
   title: string;
   description: string;
@@ -19,7 +38,6 @@ interface LessonData {
   videoUrl: string;
 }
 
-// Định nghĩa kiểu cho lesson từ API
 interface LessonFromAPI {
   _id: string;
   title: string;
@@ -31,7 +49,6 @@ interface LessonFromAPI {
   videoUrl: string;
 }
 
-// Component wrapper để xử lý tải font
 const FontLoader = ({ children }: { children: React.ReactNode }) => {
   const [fontsLoaded, fontError] = useFonts({
     Raleway_700Bold,
@@ -42,11 +59,8 @@ const FontLoader = ({ children }: { children: React.ReactNode }) => {
 
   if (!fontsLoaded && !fontError) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#009990" />
-        <Text style={{ marginTop: 10, fontSize: 16, color: "#333" }}>
-          Đang tải font...
-        </Text>
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -68,6 +82,7 @@ const EditLessonScreen = () => {
   const [videoFile, setVideoFile] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
 
   useEffect(() => {
     const fetchLesson = async () => {
@@ -98,7 +113,7 @@ const EditLessonScreen = () => {
         console.error("Lỗi khi tải thông tin bài học:", error);
         setError(error.response?.data?.message || "Không thể tải thông tin bài học!");
         Toast.show(error.response?.data?.message || "Không thể tải thông tin bài học!", { type: "danger" });
-        router.back(); // Điều hướng về màn hình trước đó nếu không tải được dữ liệu
+        router.back();
       } finally {
         setLoading(false);
       }
@@ -159,7 +174,7 @@ const EditLessonScreen = () => {
         headers: { "Content-Type": "multipart/form-data" },
       });
       Toast.show("Cập nhật bài học thành công!", { type: "success" });
-      router.replace({ pathname: "/(admin)/manage-courses/course-details", params: { courseId } }); // Điều hướng về chi tiết khóa học
+      router.replace({ pathname: "/(admin)/manage-courses/course-details", params: { courseId } });
     } catch (error: any) {
       console.error("Lỗi khi cập nhật bài học:", error);
       Toast.show(error.response?.data?.message || "Không thể cập nhật bài học!", { type: "danger" });
@@ -170,99 +185,183 @@ const EditLessonScreen = () => {
 
   return (
     <FontLoader>
-      {loading ? (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <ActivityIndicator size="large" color="#009990" />
-        </View>
-      ) : error ? (
-        <View style={dashboardStyles.container}>
-          <Text style={[dashboardStyles.welcomeText, { fontFamily: "Raleway_700Bold", color: "red" }]}>
-            {error}
-          </Text>
-          <TouchableOpacity
-            style={[dashboardStyles.button, { backgroundColor: "#ccc", marginTop: 20 }]}
-            onPress={() => router.back()}
-          >
-            <Text style={[dashboardStyles.buttonText, { fontFamily: "Nunito_600SemiBold" }]}>
-              Quay Lại
+      <SafeAreaView style={styles.safeArea}>
+        {loading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+          </View>
+        ) : error ? (
+          <View style={[dashboardStyles.container, styles.container]}>
+            <CustomHeader title="Chỉnh Sửa Bài Học" navigation={navigation} />
+            <Text style={styles.errorTitle}>
+              {error}
             </Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <ScrollView style={dashboardStyles.container}>
-          <Text style={[dashboardStyles.welcomeText, { fontFamily: "Raleway_700Bold" }]}>
-            Chỉnh Sửa Bài Học
-          </Text>
-          <TextInput
-            style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 10, borderRadius: 5 }}
-            placeholder="Tiêu đề bài học"
-            value={lessonData.title}
-            onChangeText={(text) => setLessonData({ ...lessonData, title: text })}
-          />
-          <TextInput
-            style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 10, borderRadius: 5 }}
-            placeholder="Mô tả"
-            value={lessonData.description}
-            onChangeText={(text) => setLessonData({ ...lessonData, description: text })}
-          />
-          <TextInput
-            style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 10, borderRadius: 5 }}
-            placeholder="Phần video (Video Section)"
-            value={lessonData.videoSection}
-            onChangeText={(text) => setLessonData({ ...lessonData, videoSection: text })}
-          />
-          <TextInput
-            style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 10, borderRadius: 5 }}
-            placeholder="Độ dài video (phút)"
-            value={lessonData.videoLength}
-            onChangeText={(text) => setLessonData({ ...lessonData, videoLength: text })}
-            keyboardType="numeric"
-          />
-          <TextInput
-            style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 10, borderRadius: 5 }}
-            placeholder="Video Player (e.g., Vimeo, YouTube)"
-            value={lessonData.videoPlayer}
-            onChangeText={(text) => setLessonData({ ...lessonData, videoPlayer: text })}
-          />
-          <TextInput
-            style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 10, borderRadius: 5 }}
-            placeholder="Gợi ý (nếu có)"
-            value={lessonData.suggestion}
-            onChangeText={(text) => setLessonData({ ...lessonData, suggestion: text })}
-          />
-          <TouchableOpacity
-            style={{ backgroundColor: "#009990", padding: 10, borderRadius: 5, marginBottom: 10 }}
-            onPress={pickVideo}
-          >
-            <Text style={{ color: "white", textAlign: "center", fontFamily: "Nunito_600SemiBold" }}>
-              {videoFile || lessonData.videoUrl ? "Thay đổi video" : "Chọn video"}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={dashboardStyles.button}
-            onPress={handleUpdateLesson}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <Text style={[dashboardStyles.buttonText, { fontFamily: "Nunito_600SemiBold" }]}>
-                Cập Nhật Bài Học
-              </Text>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[dashboardStyles.button, { backgroundColor: "#ccc", marginTop: 10 }]}
-          >
-            <Link href={{ pathname: "/(admin)/manage-courses/course-details", params: { courseId } }}>
-              <Text style={[dashboardStyles.buttonText, { fontFamily: "Nunito_600SemiBold" }]}>
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: theme.colors.disabled, marginTop: theme.spacing.large }]}
+              onPress={() => router.back()}
+            >
+              <Text style={styles.buttonText}>
                 Quay Lại
               </Text>
-            </Link>
-          </TouchableOpacity>
-        </ScrollView>
-      )}
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.container}>
+            <CustomHeader title="Chỉnh Sửa Bài Học" navigation={navigation} />
+            <ScrollView style={[dashboardStyles.container, styles.contentContainer]}>
+              <TextInput
+                style={styles.input}
+                placeholder="Tiêu đề bài học"
+                value={lessonData.title}
+                onChangeText={(text) => setLessonData({ ...lessonData, title: text })}
+              />
+              <TextInput
+                style={[styles.input, { height: 100 }]}
+                placeholder="Mô tả"
+                value={lessonData.description}
+                onChangeText={(text) => setLessonData({ ...lessonData, description: text })}
+                multiline
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Phần video (Video Section)"
+                value={lessonData.videoSection}
+                onChangeText={(text) => setLessonData({ ...lessonData, videoSection: text })}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Độ dài video (phút)"
+                value={lessonData.videoLength}
+                onChangeText={(text) => setLessonData({ ...lessonData, videoLength: text })}
+                keyboardType="numeric"
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Video Player (e.g., Vimeo, YouTube)"
+                value={lessonData.videoPlayer}
+                onChangeText={(text) => setLessonData({ ...lessonData, videoPlayer: text })}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Gợi ý (nếu có)"
+                value={lessonData.suggestion}
+                onChangeText={(text) => setLessonData({ ...lessonData, suggestion: text })}
+              />
+              <TouchableOpacity
+                style={styles.videoButton}
+                onPress={pickVideo}
+              >
+                <Text style={styles.videoButtonText}>
+                  {videoFile || lessonData.videoUrl ? "Thay đổi video" : "Chọn video"}
+                </Text>
+              </TouchableOpacity>
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={[styles.button, { backgroundColor: theme.colors.primary }]}
+                  onPress={handleUpdateLesson}
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color={theme.colors.white} />
+                  ) : (
+                    <Text style={styles.buttonText}>
+                      Cập Nhật Bài Học
+                    </Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.button, { backgroundColor: theme.colors.disabled }]}>
+                  <Link href={{ pathname: "/(admin)/manage-courses/course-details", params: { courseId } }}>
+                    <Text style={styles.buttonText}>
+                      Quay Lại
+                    </Text>
+                  </Link>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        )}
+      </SafeAreaView>
     </FontLoader>
   );
 };
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  contentContainer: {
+    paddingHorizontal: theme.spacing.medium,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: theme.colors.background,
+  },
+  errorTitle: {
+    fontFamily: theme.typography.fontFamily.bold,
+    fontSize: theme.typography.fontSize.h1,
+    color: theme.colors.error,
+    textAlign: "center",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: theme.spacing.medium,
+    marginBottom: theme.spacing.medium,
+    borderRadius: theme.borderRadius.medium,
+    fontFamily: theme.typography.fontFamily.regular,
+    fontSize: theme.typography.fontSize.body,
+    backgroundColor: theme.colors.white,
+    elevation: theme.elevation.small,
+    shadowColor: theme.colors.text,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  videoButton: {
+    backgroundColor: theme.colors.primary,
+    padding: theme.spacing.medium,
+    borderRadius: theme.borderRadius.medium,
+    marginBottom: theme.spacing.medium,
+    alignItems: "center",
+    elevation: theme.elevation.small,
+    shadowColor: theme.colors.text,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  videoButtonText: {
+    fontFamily: theme.typography.fontFamily.semiBold,
+    fontSize: theme.typography.fontSize.button,
+    color: theme.colors.white,
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: theme.spacing.large,
+  },
+  button: {
+    flex: 1,
+    borderRadius: theme.borderRadius.medium,
+    paddingVertical: theme.spacing.medium,
+    marginHorizontal: theme.spacing.small,
+    elevation: theme.elevation.small,
+    shadowColor: theme.colors.text,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    alignItems: "center",
+  },
+  buttonText: {
+    fontFamily: theme.typography.fontFamily.semiBold,
+    fontSize: theme.typography.fontSize.button,
+    color: theme.colors.white,
+  },
+});
 
 export default EditLessonScreen;
