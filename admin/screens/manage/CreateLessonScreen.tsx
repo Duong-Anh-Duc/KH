@@ -5,12 +5,45 @@ import { Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway';
 import * as VideoPicker from "expo-image-picker";
 import { Link, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity } from "react-native";
+import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Toast } from "react-native-toast-notifications";
+
+// Định nghĩa kiểu cho lessonData
+interface LessonData {
+  title: string;
+  description: string;
+  videoSection: string;
+  videoLength: string;
+  videoPlayer: string;
+  suggestion: string;
+}
+
+// Component wrapper để xử lý tải font
+const FontLoader = ({ children }: { children: React.ReactNode }) => {
+  const [fontsLoaded, fontError] = useFonts({
+    Raleway_700Bold,
+    Nunito_400Regular,
+    Nunito_600SemiBold,
+    Nunito_700Bold,
+  });
+
+  if (!fontsLoaded && !fontError) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#009990" />
+        <Text style={{ marginTop: 10, fontSize: 16, color: "#333" }}>
+          Đang tải font...
+        </Text>
+      </View>
+    );
+  }
+
+  return <>{children}</>;
+};
 
 const CreateLessonScreen = () => {
   const { courseId } = useLocalSearchParams();
-  const [lessonData, setLessonData] = useState({
+  const [lessonData, setLessonData] = useState<LessonData>({
     title: "",
     description: "",
     videoSection: "",
@@ -20,17 +53,6 @@ const CreateLessonScreen = () => {
   });
   const [videoFile, setVideoFile] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  let [fontsLoaded, fontError] = useFonts({
-    Raleway_700Bold,
-    Nunito_400Regular,
-    Nunito_600SemiBold,
-    Nunito_700Bold,
-  });
-
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
 
   const pickVideo = async () => {
     const { status } = await VideoPicker.requestMediaLibraryPermissionsAsync();
@@ -51,6 +73,11 @@ const CreateLessonScreen = () => {
   };
 
   const handleCreateLesson = async () => {
+    if (!courseId || typeof courseId !== "string") {
+      Toast.show("ID khóa học không hợp lệ!", { type: "danger" });
+      return;
+    }
+
     if (!lessonData.title || !lessonData.description || !lessonData.videoSection || !lessonData.videoLength || !lessonData.videoPlayer) {
       Toast.show("Vui lòng điền đầy đủ thông tin!", { type: "danger" });
       return;
@@ -59,7 +86,7 @@ const CreateLessonScreen = () => {
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append("courseId", courseId as string);
+      formData.append("courseId", courseId);
       formData.append("title", lessonData.title);
       formData.append("description", lessonData.description);
       formData.append("videoSection", lessonData.videoSection);
@@ -80,85 +107,87 @@ const CreateLessonScreen = () => {
       });
       Toast.show("Thêm bài học thành công!", { type: "success" });
     } catch (error: any) {
-      Toast.show("Không thể thêm bài học!", { type: "danger" });
+      console.error("Lỗi khi thêm bài học:", error);
+      Toast.show(error.response?.data?.message || "Không thể thêm bài học!", { type: "danger" });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ScrollView style={dashboardStyles.container}>
-      <Text style={[dashboardStyles.welcomeText, { fontFamily: "Raleway_700Bold" }]}>
-        Thêm Bài Học
-      </Text>
-      <TextInput
-        style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 10, borderRadius: 5 }}
-        placeholder="Tiêu đề bài học"
-        value={lessonData.title}
-        onChangeText={(text) => setLessonData({ ...lessonData, title: text })}
-      />
-      <TextInput
-        style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 10, borderRadius: 5 }}
-        placeholder="Mô tả"
-        value={lessonData.description}
-        onChangeText={(text) => setLessonData({ ...lessonData, description: text })}
-      />
-      <TextInput
-        style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 10, borderRadius: 5 }}
-        placeholder="Phần video (Video Section)"
-        value={lessonData.videoSection}
-        onChangeText={(text) => setLessonData({ ...lessonData, videoSection: text })}
-      />
-      <TextInput
-        style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 10, borderRadius: 5 }}
-        placeholder="Độ dài video (phút)"
-        value={lessonData.videoLength}
-        onChangeText={(text) => setLessonData({ ...lessonData, videoLength: text })}
-        keyboardType="numeric"
-      />
-      <TextInput
-        style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 10, borderRadius: 5 }}
-        placeholder="Video Player (e.g., Vimeo, YouTube)"
-        value={lessonData.videoPlayer}
-        onChangeText={(text) => setLessonData({ ...lessonData, videoPlayer: text })}
-      />
-      <TextInput
-        style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 10, borderRadius: 5 }}
-        placeholder="Gợi ý (nếu có)"
-        value={lessonData.suggestion}
-        onChangeText={(text) => setLessonData({ ...lessonData, suggestion: text })}
-      />
-      <TouchableOpacity
-        style={{ backgroundColor: "#009990", padding: 10, borderRadius: 5, marginBottom: 10 }}
-        onPress={pickVideo}
-      >
-        <Text style={{ color: "white", textAlign: "center", fontFamily: "Nunito_600SemiBold" }}>
-          {videoFile ? "Thay đổi video" : "Chọn video"}
+    <FontLoader>
+      <ScrollView style={dashboardStyles.container}>
+        <Text style={[dashboardStyles.welcomeText, { fontFamily: "Raleway_700Bold" }]}>
+          Thêm Bài Học
         </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={dashboardStyles.button}
-        onPress={handleCreateLesson}
-      >
-        {loading ? (
-          <ActivityIndicator size="small" color="white" />
-        ) : (
-          <Text style={[dashboardStyles.buttonText, { fontFamily: "Nunito_600SemiBold" }]}>
-            Thêm Bài Học
+        <TextInput
+          style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 10, borderRadius: 5 }}
+          placeholder="Tiêu đề bài học"
+          value={lessonData.title}
+          onChangeText={(text) => setLessonData({ ...lessonData, title: text })}
+        />
+        <TextInput
+          style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 10, borderRadius: 5 }}
+          placeholder="Mô tả"
+          value={lessonData.description}
+          onChangeText={(text) => setLessonData({ ...lessonData, description: text })}
+        />
+        <TextInput
+          style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 10, borderRadius: 5 }}
+          placeholder="Phần video (Video Section)"
+          value={lessonData.videoSection}
+          onChangeText={(text) => setLessonData({ ...lessonData, videoSection: text })}
+        />
+        <TextInput
+          style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 10, borderRadius: 5 }}
+          placeholder="Độ dài video (phút)"
+          value={lessonData.videoLength}
+          onChangeText={(text) => setLessonData({ ...lessonData, videoLength: text })}
+          keyboardType="numeric"
+        />
+        <TextInput
+          style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 10, borderRadius: 5 }}
+          placeholder="Video Player (e.g., Vimeo, YouTube)"
+          value={lessonData.videoPlayer}
+          onChangeText={(text) => setLessonData({ ...lessonData, videoPlayer: text })}
+        />
+        <TextInput
+          style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 10, borderRadius: 5 }}
+          placeholder="Gợi ý (nếu có)"
+          value={lessonData.suggestion}
+          onChangeText={(text) => setLessonData({ ...lessonData, suggestion: text })}
+        />
+        <TouchableOpacity
+          style={{ backgroundColor: "#009990", padding: 10, borderRadius: 5, marginBottom: 10 }}
+          onPress={pickVideo}
+        >
+          <Text style={{ color: "white", textAlign: "center", fontFamily: "Nunito_600SemiBold" }}>
+            {videoFile ? "Thay đổi video" : "Chọn video"}
           </Text>
-        )}
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[dashboardStyles.button, { backgroundColor: "#ccc", marginTop: 10 }]}
-      >
-        {/* @ts-ignore */}
-        <Link href={{ pathname: "/(admin)/manage-courses/course-details", params: { courseId } }}>
-          <Text style={[dashboardStyles.buttonText, { fontFamily: "Nunito_600SemiBold" }]}>
-            Quay Lại
-          </Text>
-        </Link>
-      </TouchableOpacity>
-    </ScrollView>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={dashboardStyles.button}
+          onPress={handleCreateLesson}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="white" />
+          ) : (
+            <Text style={[dashboardStyles.buttonText, { fontFamily: "Nunito_600SemiBold" }]}>
+              Thêm Bài Học
+            </Text>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[dashboardStyles.button, { backgroundColor: "#ccc", marginTop: 10 }]}
+        >
+          <Link href={{ pathname: "/(admin)/manage-courses/course-details", params: { courseId } }}>
+            <Text style={[dashboardStyles.buttonText, { fontFamily: "Nunito_600SemiBold" }]}>
+              Quay Lại
+            </Text>
+          </Link>
+        </TouchableOpacity>
+      </ScrollView>
+    </FontLoader>
   );
 };
 

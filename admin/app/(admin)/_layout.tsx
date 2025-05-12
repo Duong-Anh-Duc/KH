@@ -1,15 +1,15 @@
-import { Drawer } from "expo-router/drawer";
+import AdminNavbar from "@/components/AdminNavbar";
 import { useAuth } from "@/context/AuthContext";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { Drawer } from "expo-router/drawer";
 import { useEffect } from "react";
 import { Toast } from "react-native-toast-notifications";
-import AdminNavbar from "@/components/AdminNavbar";
-import { Ionicons } from "@expo/vector-icons";
 
+// Đảm bảo rằng các route khớp với cấu trúc thư mục
 export default function AdminLayout() {
   const { user } = useAuth();
 
-  // Kiểm tra quyền admin khi truy cập khu vực admin
   useEffect(() => {
     if (!user || user.role !== "admin") {
       Toast.show("Bạn không có quyền truy cập khu vực Admin!", {
@@ -32,6 +32,7 @@ export default function AdminLayout() {
         },
       }}
     >
+      {/* Khai báo các route khớp với thư mục */}
       <Drawer.Screen
         name="dashboard"
         options={{
