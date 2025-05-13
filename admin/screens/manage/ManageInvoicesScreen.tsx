@@ -81,7 +81,7 @@ const ManageInvoicesScreen = () => {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/api/v1/get-invoices"); // Đã bỏ /invoice
+      const response = await api.get("/get-invoices"); // Đã bỏ /invoice
       setInvoices(response.data.invoices || []);
     } catch (error: any) {
       console.error("Lỗi khi tải danh sách hóa đơn:", error);
@@ -113,7 +113,7 @@ const ManageInvoicesScreen = () => {
           text: "Xóa",
           onPress: async () => {
             try {
-              await api.delete(`/api/v1/delete-invoice/${invoiceId}`); // Đã bỏ /invoice
+              await api.delete(`/delete-invoice/${invoiceId}`); // Đã bỏ /invoice
               setInvoices(invoices.filter((invoice) => invoice.invoiceId !== invoiceId));
               Toast.show("Xóa hóa đơn thành công!", { type: "success" });
             } catch (error: any) {
@@ -130,7 +130,7 @@ const ManageInvoicesScreen = () => {
   // Hàm xem chi tiết hóa đơn
   const handleViewInvoice = async (invoiceId: string) => {
     try {
-      const response = await api.get(`/api/v1/get-invoice/${invoiceId}`); // Đã bỏ /invoice
+      const response = await api.get(`/get-invoice/${invoiceId}`); // Đã bỏ /invoice
       const invoice = response.data.invoice;
       Alert.alert(
         "Chi Tiết Hóa Đơn",
