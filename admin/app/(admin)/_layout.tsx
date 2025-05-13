@@ -31,7 +31,7 @@ export default function AdminLayout() {
           headerShown: false,
           drawerPosition: "left",
           drawerType: "slide",
-          swipeEnabled: false, // Tắt tính năng kéo để tránh kéo sang màn login
+          swipeEnabled: false,
           drawerStyle: {
             width: 250,
             backgroundColor: theme.colors.primary,
@@ -79,7 +79,7 @@ export default function AdminLayout() {
           }}
         />
         <Drawer.Screen
-          name="manage-orders"
+          name="manage-invoices" // Thay đổi tên từ "manage-orders" thành "manage-invoices"
           options={{
             drawerLabel: "Quản Lý Hóa Đơn",
             title: "Quản Lý Hóa Đơn",

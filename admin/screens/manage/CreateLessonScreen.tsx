@@ -5,7 +5,7 @@ import api from "@/utils/api";
 import { Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
 import { Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
-import * as VideoPicker from "expo-image-picker";
+import * as ImagePicker from "expo-image-picker"; // Đổi tên import để dùng chung cho cả ảnh và video
 import { Link, useLocalSearchParams, useNavigation } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
@@ -67,24 +67,43 @@ const CreateLessonScreen = () => {
     suggestion: "",
   });
   const [videoFile, setVideoFile] = useState<string | null>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<string | null>(null); // Thêm state cho thumbnailFile
   const [loading, setLoading] = useState(false);
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
 
   const pickVideo = async () => {
-    const { status } = await VideoPicker.requestMediaLibraryPermissionsAsync();
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       Toast.show("Cần quyền truy cập thư viện video!", { type: "danger" });
       return;
     }
 
-    const result = await VideoPicker.launchImageLibraryAsync({
-      mediaTypes: VideoPicker.MediaTypeOptions.Videos,
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
       allowsEditing: true,
       quality: 1,
     });
 
     if (!result.canceled) {
       setVideoFile(result.assets[0].uri);
+    }
+  };
+
+  const pickThumbnail = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Toast.show("Cần quyền truy cập thư viện ảnh!", { type: "danger" });
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setThumbnailFile(result.assets[0].uri);
     }
   };
 
@@ -99,6 +118,16 @@ const CreateLessonScreen = () => {
       return;
     }
 
+    if (!videoFile) {
+      Toast.show("Vui lòng chọn video bài học!", { type: "danger" });
+      return;
+    }
+
+    if (!thumbnailFile) {
+      Toast.show("Vui lòng chọn thumbnail bài học!", { type: "danger" });
+      return;
+    }
+
     setLoading(true);
     try {
       const formData = new FormData();
@@ -110,13 +139,17 @@ const CreateLessonScreen = () => {
       formData.append("videoPlayer", lessonData.videoPlayer);
       formData.append("suggestion", lessonData.suggestion);
 
-      if (videoFile) {
-        formData.append("videoFile", {
-          uri: videoFile,
-          name: "lesson_video.mp4",
-          type: "video/mp4",
-        } as any);
-      }
+      formData.append("videoFile", {
+        uri: videoFile,
+        name: "lesson_video.mp4",
+        type: "video/mp4",
+      } as any);
+
+      formData.append("thumbnailFile", {
+        uri: thumbnailFile,
+        name: "thumbnail.jpg",
+        type: "image/jpeg",
+      } as any);
 
       await api.post("/add-lesson", formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -179,7 +212,15 @@ const CreateLessonScreen = () => {
               onPress={pickVideo}
             >
               <Text style={styles.videoButtonText}>
-                {videoFile ? "Thay đổi video" : "Chọn video"}
+                {videoFile ? "Thay đổi video" : "Chọn video bài học"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.thumbnailButton}
+              onPress={pickThumbnail}
+            >
+              <Text style={styles.thumbnailButtonText}>
+                {thumbnailFile ? "Thay đổi thumbnail" : "Chọn thumbnail bài học"}
               </Text>
             </TouchableOpacity>
             <View style={styles.buttonContainer}>
@@ -190,16 +231,12 @@ const CreateLessonScreen = () => {
                 {loading ? (
                   <ActivityIndicator size="small" color={theme.colors.white} />
                 ) : (
-                  <Text style={styles.buttonText}>
-                    Thêm Bài Học
-                  </Text>
+                  <Text style={styles.buttonText}>Thêm Bài Học</Text>
                 )}
               </TouchableOpacity>
               <TouchableOpacity style={[styles.button, { backgroundColor: theme.colors.disabled }]}>
                 <Link href={{ pathname: "/(admin)/manage-courses/course-details", params: { courseId } }}>
-                  <Text style={styles.buttonText}>
-                    Quay Lại
-                  </Text>
+                  <Text style={styles.buttonText}>Quay Lại</Text>
                 </Link>
               </TouchableOpacity>
             </View>
@@ -255,7 +292,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
+  thumbnailButton: {
+    backgroundColor: theme.colors.secondary,
+    padding: theme.spacing.medium,
+    borderRadius: theme.borderRadius.medium,
+    marginBottom: theme.spacing.medium,
+    alignItems: "center",
+    elevation: theme.elevation.small,
+    shadowColor: theme.colors.text,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
   videoButtonText: {
+    fontFamily: theme.typography.fontFamily.semiBold,
+    fontSize: theme.typography.fontSize.button,
+    color: theme.colors.white,
+  },
+  thumbnailButtonText: {
     fontFamily: theme.typography.fontFamily.semiBold,
     fontSize: theme.typography.fontSize.button,
     color: theme.colors.white,

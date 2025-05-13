@@ -1,10 +1,10 @@
-import { theme } from "@/styles/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { DrawerContentComponentProps } from "@react-navigation/drawer";
 import { router } from "expo-router";
 import { Alert, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Toast } from "react-native-toast-notifications";
 import { useAuth } from "../context/AuthContext";
+import { theme } from "../styles/theme";
 
 const AdminNavbar = ({ navigation }: DrawerContentComponentProps) => {
   const { logout } = useAuth();
@@ -80,7 +80,7 @@ const AdminNavbar = ({ navigation }: DrawerContentComponentProps) => {
         <TouchableOpacity
           style={styles.navbarItem}
           onPress={() => {
-            router.push("/(admin)/manage-orders");
+            router.push("/(admin)/manage-invoices" as any); // Cập nhật route
             navigation.closeDrawer();
           }}
         >

@@ -5,13 +5,12 @@ import { theme } from "@/styles/theme";
 import api from "@/utils/api";
 import { Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
 import { Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway';
-import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { router, useNavigation } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Toast } from 'react-native-toast-notifications';
 
-// Định nghĩa ParamList cho DrawerNavigator
+// Định nghĩa ParamList cho DrawerNavigator (giữ nguyên để tham khảo)
 type DrawerParamList = {
   dashboard: undefined;
   "manage-courses": undefined;
@@ -32,11 +31,11 @@ const DashboardScreen = () => {
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalCourses: 0,
-    totalOrders: 0,
+    totalInvoices: 0,
   });
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
-  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
+  const navigation = useNavigation<any>();
 
   let [fontsLoaded, fontError] = useFonts({
     Raleway_700Bold,
@@ -49,17 +48,27 @@ const DashboardScreen = () => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const [usersRes, coursesRes, ordersRes] = await Promise.all([
-          api.get("/users/count"),
-          api.get("/courses/count"),
-          api.get("/orders/count"),
+        const [usersRes, coursesRes, invoicesRes] = await Promise.all([
+          api.get("/users/count").catch((err) => {
+            console.error("Lỗi khi gọi /users/count:", err.response?.data || err.message);
+            return { data: { count: 0 } };
+          }),
+          api.get("/courses/count").catch((err) => {
+            console.error("Lỗi khi gọi /courses/count:", err.response?.data || err.message);
+            return { data: { count: 0 } };
+          }),
+          api.get("/get-invoices").catch((err) => { // Bỏ /invoice
+            console.error("Lỗi khi gọi /get-invoices:", err.response?.data || err.message);
+            return { data: { invoices: [] } };
+          }),
         ]);
         setStats({
           totalUsers: usersRes.data.count || 0,
           totalCourses: coursesRes.data.count || 0,
-          totalOrders: ordersRes.data.count || 0,
+          totalInvoices: invoicesRes.data.invoices ? invoicesRes.data.invoices.length : 0,
         });
       } catch (error: any) {
+        console.error("Lỗi tổng hợp khi lấy dữ liệu thống kê:", error);
         Toast.show("Không thể tải dữ liệu thống kê!", {
           type: "danger",
           placement: "top",
@@ -92,7 +101,6 @@ const DashboardScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* Sử dụng CustomHeader */}
         <CustomHeader title="Admin Dashboard" navigation={navigation} />
         <ScrollView style={[dashboardStyles.container, { backgroundColor: theme.colors.background }]}>
           <Text style={[dashboardStyles.welcomeText, { fontFamily: "Raleway_700Bold" }]}>
@@ -119,7 +127,7 @@ const DashboardScreen = () => {
               Tổng số hóa đơn
             </Text>
             <Text style={[dashboardStyles.cardValue, { fontFamily: "Nunito_600SemiBold" }]}>
-              {stats.totalOrders}
+              {stats.totalInvoices}
             </Text>
           </View>
         </ScrollView>

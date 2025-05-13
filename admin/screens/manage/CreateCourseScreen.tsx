@@ -44,7 +44,6 @@ interface CourseData {
   estimatedPrice: string;
   tags: string;
   level: string;
-  demoUrl: string;
 }
 
 const FontLoader = ({ children }: { children: React.ReactNode }) => {
@@ -95,9 +94,9 @@ const CreateCourseScreen = () => {
     estimatedPrice: "",
     tags: "",
     level: "",
-    demoUrl: "",
   });
   const [thumbnail, setThumbnail] = useState<string | null>(null);
+  const [demoVideo, setDemoVideo] = useState<string | null>(null); // Thêm state cho demoVideo
   const [loading, setLoading] = useState(false);
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
 
@@ -120,9 +119,37 @@ const CreateCourseScreen = () => {
     }
   };
 
+  const pickDemoVideo = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Toast.show("Cần quyền truy cập thư viện video!", { type: "danger" });
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      allowsEditing: true,
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setDemoVideo(result.assets[0].uri);
+    }
+  };
+
   const handleCreateCourse = async () => {
     if (!courseData.name || !courseData.description || !courseData.categories || !courseData.price || !courseData.tags || !courseData.level) {
       Toast.show("Vui lòng điền đầy đủ thông tin!", { type: "danger" });
+      return;
+    }
+
+    if (!thumbnail) {
+      Toast.show("Vui lòng chọn thumbnail!", { type: "danger" });
+      return;
+    }
+
+    if (!demoVideo) {
+      Toast.show("Vui lòng chọn demo video!", { type: "danger" });
       return;
     }
 
@@ -136,15 +163,18 @@ const CreateCourseScreen = () => {
       formData.append("estimatedPrice", courseData.estimatedPrice);
       formData.append("tags", courseData.tags);
       formData.append("level", courseData.level);
-      formData.append("demoUrl", courseData.demoUrl);
 
-      if (thumbnail) {
-        formData.append("thumbnail", {
-          uri: thumbnail,
-          name: "thumbnail.jpg",
-          type: "image/jpeg",
-        } as any);
-      }
+      formData.append("thumbnail", {
+        uri: thumbnail,
+        name: "thumbnail.jpg",
+        type: "image/jpeg",
+      } as any);
+
+      formData.append("demoVideo", {
+        uri: demoVideo,
+        name: "demoVideo.mp4",
+        type: "video/mp4",
+      } as any);
 
       await api.post("/create-course", formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -156,7 +186,7 @@ const CreateCourseScreen = () => {
       if (error.code === "ECONNABORTED") {
         Toast.show("Yêu cầu mất quá nhiều thời gian. Vui lòng kiểm tra kết nối mạng hoặc thử lại với file nhỏ hơn!", { type: "danger" });
       } else if (error.response?.status === 413) {
-        Toast.show("File quá lớn! Vui lòng chọn file nhỏ hơn 5MB.", { type: "danger" });
+        Toast.show("File quá lớn! Vui lòng chọn file nhỏ hơn 50MB.", { type: "danger" });
       } else {
         Toast.show(error.response?.data?.message || "Không thể tạo khóa học! Vui lòng thử lại sau.", { type: "danger" });
       }
@@ -216,12 +246,6 @@ const CreateCourseScreen = () => {
               value={courseData.level}
               onChangeText={(text) => setCourseData({ ...courseData, level: text })}
             />
-            <TextInput
-              style={styles.input}
-              placeholder="URL video demo"
-              value={courseData.demoUrl}
-              onChangeText={(text) => setCourseData({ ...courseData, demoUrl: text })}
-            />
             <TouchableOpacity
               style={styles.thumbnailContainer}
               onPress={pickThumbnail}
@@ -238,6 +262,14 @@ const CreateCourseScreen = () => {
                 </Text>
               )}
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.videoButton}
+              onPress={pickDemoVideo}
+            >
+              <Text style={styles.videoButtonText}>
+                {demoVideo ? "Thay đổi demo video" : "Chọn demo video"}
+              </Text>
+            </TouchableOpacity>
             <View style={styles.buttonContainer}>
               <TouchableOpacity
                 style={[styles.button, { backgroundColor: theme.colors.primary }]}
@@ -246,16 +278,12 @@ const CreateCourseScreen = () => {
                 {loading ? (
                   <ActivityIndicator size="small" color={theme.colors.white} />
                 ) : (
-                  <Text style={styles.buttonText}>
-                    Tạo Khóa Học
-                  </Text>
+                  <Text style={styles.buttonText}>Tạo Khóa Học</Text>
                 )}
               </TouchableOpacity>
               <TouchableOpacity style={[styles.button, { backgroundColor: theme.colors.disabled }]}>
                 <Link href="/(admin)/manage-courses">
-                  <Text style={styles.buttonText}>
-                    Quay Lại
-                  </Text>
+                  <Text style={styles.buttonText}>Quay Lại</Text>
                 </Link>
               </TouchableOpacity>
             </View>
@@ -321,6 +349,23 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.semiBold,
     fontSize: theme.typography.fontSize.body,
     color: theme.colors.textSecondary,
+  },
+  videoButton: {
+    backgroundColor: theme.colors.primary,
+    padding: theme.spacing.medium,
+    borderRadius: theme.borderRadius.medium,
+    marginBottom: theme.spacing.medium,
+    alignItems: "center",
+    elevation: theme.elevation.small,
+    shadowColor: theme.colors.text,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  videoButtonText: {
+    fontFamily: theme.typography.fontFamily.semiBold,
+    fontSize: theme.typography.fontSize.button,
+    color: theme.colors.white,
   },
   buttonContainer: {
     flexDirection: "row",

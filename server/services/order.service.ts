@@ -8,6 +8,7 @@ import userModel from "../models/user.model";
 import ErrorHandler from "../utils/ErrorHandler";
 import { redis } from "../utils/redis";
 import sendMail from "../utils/sendMail";
+import { createInvoiceFromOrderService } from "./invoice.service"; // Import service tạo hóa đơn
 
 interface CreateMobileOrderData {
   userId: string;
@@ -116,6 +117,11 @@ export const createMobileOrderService = async (data: CreateMobileOrderData) => {
   });
   console.log("Đơn hàng đã được tạo:", order);
 
+  // Tạo hóa đơn từ đơn hàng
+  console.log("Tạo hóa đơn từ đơn hàng...");
+  const invoice = await createInvoiceFromOrderService(order._id.toString());
+  console.log("Hóa đơn đã được tạo:", invoice);
+
   console.log("Cập nhật danh sách khóa học đã mua của người dùng...");
   coursesInCart.forEach((course) => {
     if (course.courseId) {
@@ -163,6 +169,7 @@ export const createMobileOrderService = async (data: CreateMobileOrderData) => {
   const mailData = {
     order: {
       _id: order._id.toString().slice(0, 6),
+      invoiceId: invoice.invoiceId, // Thêm mã hóa đơn vào email
       courses: coursesInCart.map((course) => ({
         name: course.courseName,
         price: course.priceAtPurchase,
@@ -197,6 +204,7 @@ export const createMobileOrderService = async (data: CreateMobileOrderData) => {
   return order;
 };
 
+// Các service khác giữ nguyên
 export const getAllOrdersService = async () => {
   console.log("Bắt đầu lấy tất cả đơn hàng trong getAllOrdersService...");
   const orders = await OrderModel.find().sort({ createdAt: -1 });
