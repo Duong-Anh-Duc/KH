@@ -15,12 +15,19 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  RefreshControl,
 } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
 import { widthPercentageToDP } from "react-native-responsive-screen";
 import CourseCard from "../cards/course.card";
 
-export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: boolean; showFilters?: boolean }) {
+export default function SearchInput({
+  homeScreen,
+  showFilters,
+}: {
+  homeScreen?: boolean;
+  showFilters?: boolean;
+}) {
   const [value, setValue] = useState("");
   const [suggestions, setSuggestions] = useState<CoursesType[]>([]);
   const [courses, setCourses] = useState<CoursesType[]>([]);
@@ -28,7 +35,9 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
   const [categories, setCategories] = useState<CategoryType[]>([]);
   const [openCategory, setOpenCategory] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
-  const [categoryItems, setCategoryItems] = useState<{ label: string; value: string }[]>([]);
+  const [categoryItems, setCategoryItems] = useState<
+    { label: string; value: string }[]
+  >([]);
   const [openSort, setOpenSort] = useState(false);
   const [sortOrder, setSortOrder] = useState("");
   const [sortItems] = useState([
@@ -37,6 +46,7 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
     { label: "Giá: Giảm dần", value: "desc" },
   ]);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -54,7 +64,8 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
     const fetchCategories = async () => {
       try {
         const response = await axios.get(`${SERVER_URI}/get-categories`);
-        const fetchedCategories: CategoryType[] = response.data?.categories || [];
+        const fetchedCategories: CategoryType[] =
+          response.data?.categories || [];
         setCategories(fetchedCategories);
 
         const items = [
@@ -102,10 +113,17 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
           params.sortOrder = sortOrder;
         }
 
-        const response = await axios.get(`${SERVER_URI}/filter-courses`, { params });
+        const response = await axios.get(`${SERVER_URI}/filter-courses`, {
+          params,
+        });
         const filtered = response.data.courses || [];
 
-        if (homeScreen && value.trim() === "" && selectedCategory === "Tất cả" && !sortOrder) {
+        if (
+          homeScreen &&
+          value.trim() === "" &&
+          selectedCategory === "Tất cả" &&
+          !sortOrder
+        ) {
           setFilteredCourses([]);
         } else {
           setFilteredCourses(filtered);
@@ -121,6 +139,7 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
 
   const handleSearch = async () => {
     try {
+      setRefreshing(true);
       const params: any = {};
       if (value.trim()) {
         params.name = value.trim();
@@ -132,7 +151,9 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
         params.sortOrder = sortOrder;
       }
 
-      const response = await axios.get(`${SERVER_URI}/filter-courses`, { params });
+      const response = await axios.get(`${SERVER_URI}/filter-courses`, {
+        params,
+      });
       const filtered = response.data.courses || [];
 
       if (homeScreen && value.trim() === "") {
@@ -144,6 +165,8 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
     } catch (error) {
       console.log("Error filtering courses:", error);
       setFilteredCourses([]);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -211,7 +234,12 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
   return (
     <View>
       <View style={styles.filteringContainer}>
-        <View style={[styles.searchContainer, { width: widthPercentageToDP("80%") }]}>
+        <View
+          style={[
+            styles.searchContainer,
+            { width: widthPercentageToDP("80%") },
+          ]}
+        >
           <TextInput
             style={[styles.input, { fontFamily: "Nunito_700Bold" }]}
             placeholder="Tìm kiếm"
@@ -310,6 +338,14 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
             homeScreen
               ? renderCourseItem
               : ({ item }) => <CourseCard item={item} key={item._id} />
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleSearch}
+              colors={["#009990"]}
+              tintColor="#009990"
+            />
           }
         />
       </View>

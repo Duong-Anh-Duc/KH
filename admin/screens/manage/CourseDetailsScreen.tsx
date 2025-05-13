@@ -2,12 +2,25 @@ import CustomHeader from "@/components/CustomHeader";
 import { dashboardStyles } from "@/styles/dashboard/dashboard.styles";
 import { theme } from "@/styles/theme";
 import api from "@/utils/api";
-import { Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
-import { Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway';
-import { DrawerNavigationProp } from '@react-navigation/drawer';
+import {
+  Nunito_400Regular,
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+} from "@expo-google-fonts/nunito";
+import { Raleway_700Bold, useFonts } from "@expo-google-fonts/raleway";
+import { DrawerNavigationProp } from "@react-navigation/drawer";
 import { Link, useLocalSearchParams, useNavigation } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Toast } from "react-native-toast-notifications";
 
 // Định nghĩa ParamList cho DrawerNavigator
@@ -50,37 +63,63 @@ const CourseDetailsScreen = () => {
   const { courseId } = useLocalSearchParams();
   const [course, setCourse] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
 
+  const fetchCourseDetails = async () => {
+    try {
+      if (typeof courseId !== "string" || !courseId) {
+        throw new Error("ID khóa học không hợp lệ");
+      }
+      const response = await api.get(`/get-course/${courseId}`);
+      setCourse(response.data.course);
+    } catch (error: any) {
+      console.error("Lỗi khi tải chi tiết khóa học:", error);
+      Toast.show("Không thể tải chi tiết khóa học!", { type: "danger" });
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchCourseDetails();
+    } catch (error) {
+      console.error("Lỗi khi làm mới dữ liệu:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchCourseDetails = async () => {
+    const loadData = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
-        if (typeof courseId !== "string" || !courseId) {
-          throw new Error("ID khóa học không hợp lệ");
-        }
-        const response = await api.get(`/get-course/${courseId}`);
-        setCourse(response.data.course);
-      } catch (error: any) {
-        console.error("Lỗi khi tải chi tiết khóa học:", error);
-        Toast.show("Không thể tải chi tiết khóa học!", { type: "danger" });
+        await fetchCourseDetails();
       } finally {
         setLoading(false);
       }
     };
-    fetchCourseDetails();
+    loadData();
   }, [courseId]);
 
   const handleHideLesson = async (contentId: string, isHidden: boolean) => {
     try {
-      await api.put(`/hide-lesson/${courseId}`, { contentId, isHidden: !isHidden });
+      await api.put(`/hide-lesson/${courseId}`, {
+        contentId,
+        isHidden: !isHidden,
+      });
       setCourse({
         ...course,
         courseData: course.courseData.map((content: any) =>
-          content._id === contentId ? { ...content, isHidden: !isHidden } : content
+          content._id === contentId
+            ? { ...content, isHidden: !isHidden }
+            : content
         ),
       });
-      Toast.show(isHidden ? "Hiện bài học thành công!" : "Ẩn bài học thành công!", { type: "success" });
+      Toast.show(
+        isHidden ? "Hiện bài học thành công!" : "Ẩn bài học thành công!",
+        { type: "success" }
+      );
     } catch (error: any) {
       console.error("Lỗi khi cập nhật trạng thái bài học:", error);
       Toast.show("Không thể cập nhật trạng thái bài học!", { type: "danger" });
@@ -97,76 +136,124 @@ const CourseDetailsScreen = () => {
         ) : !course ? (
           <View style={[dashboardStyles.container, styles.container]}>
             <CustomHeader title="Chi Tiết Khóa Học" navigation={navigation} />
-            <Text style={styles.errorTitle}>
-              Không tìm thấy khóa học
-            </Text>
+            <Text style={styles.errorTitle}>Không tìm thấy khóa học</Text>
           </View>
         ) : (
           <View style={styles.container}>
-            <CustomHeader title={`Chi Tiết Khóa Học: ${course.name}`} navigation={navigation} />
+            <CustomHeader
+              title={`Chi Tiết Khóa Học: ${course.name}`}
+              navigation={navigation}
+            />
             <View style={[dashboardStyles.container, styles.contentContainer]}>
               <View style={styles.infoCard}>
-                <Text style={styles.infoText}>
-                  Mô tả: {course.description}
-                </Text>
+                <Text style={styles.infoText}>Mô tả: {course.description}</Text>
                 <Text style={styles.infoText}>
                   Danh mục: {course.categories}
                 </Text>
-                <Text style={styles.infoText}>
-                  Giá: {course.price} VNĐ
-                </Text>
-                <Text style={[styles.infoText, { color: course.isHidden ? theme.colors.error : theme.colors.success }]}>
+                <Text style={styles.infoText}>Giá: {course.price} VNĐ</Text>
+                <Text
+                  style={[
+                    styles.infoText,
+                    {
+                      color: course.isHidden
+                        ? theme.colors.error
+                        : theme.colors.success,
+                    },
+                  ]}
+                >
                   Trạng thái: {course.isHidden ? "Đã ẩn" : "Hiển thị"}
                 </Text>
               </View>
               <View style={styles.buttonContainer}>
-                <TouchableOpacity style={[styles.button, { backgroundColor: theme.colors.primary }]}>
-                  <Link href={{ pathname: "/(admin)/create-lesson", params: { courseId } }}>
-                    <Text style={styles.buttonText}>
-                      Thêm Bài Học
-                    </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.button,
+                    { backgroundColor: theme.colors.primary },
+                  ]}
+                >
+                  <Link
+                    href={{
+                      pathname: "/(admin)/create-lesson",
+                      params: { courseId },
+                    }}
+                  >
+                    <Text style={styles.buttonText}>Thêm Bài Học</Text>
                   </Link>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.button, { backgroundColor: theme.colors.secondary }]}>
-                  <Link href={{ pathname: "/(admin)/enrolled-users", params: { courseId } }}>
+                <TouchableOpacity
+                  style={[
+                    styles.button,
+                    { backgroundColor: theme.colors.secondary },
+                  ]}
+                >
+                  <Link
+                    href={{
+                      pathname: "/(admin)/enrolled-users",
+                      params: { courseId },
+                    }}
+                  >
                     <Text style={styles.buttonText}>
                       Xem Người Dùng Đăng Ký
                     </Text>
                   </Link>
                 </TouchableOpacity>
               </View>
-              <Text style={styles.sectionTitle}>
-                Danh Sách Bài Học
-              </Text>
+              <Text style={styles.sectionTitle}>Danh Sách Bài Học</Text>
               <FlatList
                 data={course.courseData}
                 keyExtractor={(item) => item._id}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    colors={[theme.colors.primary]}
+                    tintColor={theme.colors.primary}
+                  />
+                }
                 renderItem={({ item }) => (
                   <View
                     style={[
                       styles.lessonCard,
-                      { backgroundColor: item.isHidden ? theme.colors.disabled : theme.colors.white },
+                      {
+                        backgroundColor: item.isHidden
+                          ? theme.colors.disabled
+                          : theme.colors.white,
+                      },
                     ]}
                   >
-                    <Text style={styles.lessonText}>
-                      {item.title}
-                    </Text>
+                    <Text style={styles.lessonText}>{item.title}</Text>
                     <View style={styles.lessonActions}>
                       <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
+                        style={[
+                          styles.actionButton,
+                          { backgroundColor: theme.colors.primary },
+                        ]}
                       >
-                        <Link href={{ pathname: "/(admin)/edit-lesson", params: { courseId, lessonId: item._id } }}>
+                        <Link
+                          href={{
+                            pathname: "/(admin)/edit-lesson",
+                            params: { courseId, lessonId: item._id },
+                          }}
+                        >
                           <Text style={styles.actionButtonText}>Sửa</Text>
                         </Link>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[
                           styles.actionButton,
-                          { backgroundColor: item.isHidden ? theme.colors.success : theme.colors.disabled },
+                          {
+                            backgroundColor: item.isHidden
+                              ? theme.colors.success
+                              : theme.colors.disabled,
+                          },
                         ]}
-                        onPress={() => handleHideLesson(item._id, item.isHidden || false)}
+                        onPress={() =>
+                          handleHideLesson(item._id, item.isHidden || false)
+                        }
                       >
-                        <Text style={styles.actionButtonText}>{item.isHidden ? "Hiện" : "Ẩn"}</Text>
+                        <Text style={styles.actionButtonText}>
+                          {item.isHidden ? "Hiện" : "Ẩn"}
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </View>

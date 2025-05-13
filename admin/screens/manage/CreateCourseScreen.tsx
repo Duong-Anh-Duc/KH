@@ -2,14 +2,28 @@ import CustomHeader from "@/components/CustomHeader";
 import { dashboardStyles } from "@/styles/dashboard/dashboard.styles";
 import { theme } from "@/styles/theme";
 import api from "@/utils/api";
-import { Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
-import { Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway';
-import { DrawerNavigationProp } from '@react-navigation/drawer';
+import {
+  Nunito_400Regular,
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+} from "@expo-google-fonts/nunito";
+import { Raleway_700Bold, useFonts } from "@expo-google-fonts/raleway";
+import { DrawerNavigationProp } from "@react-navigation/drawer";
 import axiosRetry from "axios-retry";
 import * as ImagePicker from "expo-image-picker";
 import { Link, useNavigation } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import ImageResizer from "react-native-image-resizer";
 import { Toast } from "react-native-toast-notifications";
 
@@ -33,7 +47,8 @@ type DrawerParamList = {
 axiosRetry(api, {
   retries: 3,
   retryDelay: (retryCount) => retryCount * 2000,
-  retryCondition: (error) => error.code === "ECONNABORTED" || error.code === "ERR_NETWORK",
+  retryCondition: (error) =>
+    error.code === "ECONNABORTED" || error.code === "ERR_NETWORK",
 });
 
 interface CourseData {
@@ -138,7 +153,14 @@ const CreateCourseScreen = () => {
   };
 
   const handleCreateCourse = async () => {
-    if (!courseData.name || !courseData.description || !courseData.categories || !courseData.price || !courseData.tags || !courseData.level) {
+    if (
+      !courseData.name ||
+      !courseData.description ||
+      !courseData.categories ||
+      !courseData.price ||
+      !courseData.tags ||
+      !courseData.level
+    ) {
       Toast.show("Vui lòng điền đầy đủ thông tin!", { type: "danger" });
       return;
     }
@@ -178,17 +200,26 @@ const CreateCourseScreen = () => {
 
       await api.post("/create-course", formData, {
         headers: { "Content-Type": "multipart/form-data" },
-        timeout: 30000,
+        timeout: 1000000,
       });
       Toast.show("Tạo khóa học thành công!", { type: "success" });
     } catch (error: any) {
       console.error("Lỗi khi tạo khóa học:", error);
       if (error.code === "ECONNABORTED") {
-        Toast.show("Yêu cầu mất quá nhiều thời gian. Vui lòng kiểm tra kết nối mạng hoặc thử lại với file nhỏ hơn!", { type: "danger" });
+        Toast.show(
+          "Yêu cầu mất quá nhiều thời gian. Vui lòng kiểm tra kết nối mạng hoặc thử lại với file nhỏ hơn!",
+          { type: "danger" }
+        );
       } else if (error.response?.status === 413) {
-        Toast.show("File quá lớn! Vui lòng chọn file nhỏ hơn 50MB.", { type: "danger" });
+        Toast.show("File quá lớn! Vui lòng chọn file nhỏ hơn 50MB.", {
+          type: "danger",
+        });
       } else {
-        Toast.show(error.response?.data?.message || "Không thể tạo khóa học! Vui lòng thử lại sau.", { type: "danger" });
+        Toast.show(
+          error.response?.data?.message ||
+            "Không thể tạo khóa học! Vui lòng thử lại sau.",
+          { type: "danger" }
+        );
       }
     } finally {
       setLoading(false);
@@ -200,51 +231,67 @@ const CreateCourseScreen = () => {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container}>
           <CustomHeader title="Tạo Khóa Học Mới" navigation={navigation} />
-          <ScrollView style={[dashboardStyles.container, styles.contentContainer]}>
+          <ScrollView
+            style={[dashboardStyles.container, styles.contentContainer]}
+          >
             <TextInput
               style={styles.input}
               placeholder="Tên khóa học"
               value={courseData.name}
-              onChangeText={(text) => setCourseData({ ...courseData, name: text })}
+              onChangeText={(text) =>
+                setCourseData({ ...courseData, name: text })
+              }
             />
             <TextInput
               style={[styles.input, { height: 100 }]}
               placeholder="Mô tả"
               value={courseData.description}
-              onChangeText={(text) => setCourseData({ ...courseData, description: text })}
+              onChangeText={(text) =>
+                setCourseData({ ...courseData, description: text })
+              }
               multiline
             />
             <TextInput
               style={styles.input}
               placeholder="Danh mục"
               value={courseData.categories}
-              onChangeText={(text) => setCourseData({ ...courseData, categories: text })}
+              onChangeText={(text) =>
+                setCourseData({ ...courseData, categories: text })
+              }
             />
             <TextInput
               style={styles.input}
               placeholder="Giá"
               value={courseData.price}
-              onChangeText={(text) => setCourseData({ ...courseData, price: text })}
+              onChangeText={(text) =>
+                setCourseData({ ...courseData, price: text })
+              }
               keyboardType="numeric"
             />
             <TextInput
               style={styles.input}
               placeholder="Giá ước tính (nếu có)"
               value={courseData.estimatedPrice}
-              onChangeText={(text) => setCourseData({ ...courseData, estimatedPrice: text })}
+              onChangeText={(text) =>
+                setCourseData({ ...courseData, estimatedPrice: text })
+              }
               keyboardType="numeric"
             />
             <TextInput
               style={styles.input}
               placeholder="Thẻ (tags)"
               value={courseData.tags}
-              onChangeText={(text) => setCourseData({ ...courseData, tags: text })}
+              onChangeText={(text) =>
+                setCourseData({ ...courseData, tags: text })
+              }
             />
             <TextInput
               style={styles.input}
               placeholder="Cấp độ (Beginner, Intermediate, Advanced)"
               value={courseData.level}
-              onChangeText={(text) => setCourseData({ ...courseData, level: text })}
+              onChangeText={(text) =>
+                setCourseData({ ...courseData, level: text })
+              }
             />
             <TouchableOpacity
               style={styles.thumbnailContainer}
@@ -272,7 +319,10 @@ const CreateCourseScreen = () => {
             </TouchableOpacity>
             <View style={styles.buttonContainer}>
               <TouchableOpacity
-                style={[styles.button, { backgroundColor: theme.colors.primary }]}
+                style={[
+                  styles.button,
+                  { backgroundColor: theme.colors.primary },
+                ]}
                 onPress={handleCreateCourse}
               >
                 {loading ? (
@@ -281,7 +331,12 @@ const CreateCourseScreen = () => {
                   <Text style={styles.buttonText}>Tạo Khóa Học</Text>
                 )}
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.button, { backgroundColor: theme.colors.disabled }]}>
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  { backgroundColor: theme.colors.disabled },
+                ]}
+              >
                 <Link href="/(admin)/manage-courses">
                   <Text style={styles.buttonText}>Quay Lại</Text>
                 </Link>

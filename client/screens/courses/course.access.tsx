@@ -7,8 +7,9 @@ import {
   StyleSheet,
   ScrollView,
   TextInput,
+  RefreshControl,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import axios from "axios";
 import { SERVER_URI } from "@/utils/uri";
@@ -25,34 +26,56 @@ export default function CourseAccessScreen() {
   const { user } = useUser();
   const { courseId } = useLocalSearchParams();
   const [courseData, setCourseData] = useState<CoursesType | null>(null);
-  const [courseContentData, setCourseContentData] = useState<CourseDataType[]>([]);
+  const [courseContentData, setCourseContentData] = useState<CourseDataType[]>(
+    []
+  );
   const [activeButton, setActiveButton] = useState("Về Khóa Học");
   const [isExpanded, setIsExpanded] = useState(false);
   const [rating, setRating] = useState(1);
   const [review, setReview] = useState("");
   const [reviewAvailable, setReviewAvailable] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadCourseData = async () => {
+    try {
+      if (typeof courseId !== "string" || !courseId) {
+        throw new Error("ID khóa học không hợp lệ");
+      }
+
+      const response = await axios.get(`${SERVER_URI}/get-course/${courseId}`);
+      const fetchedCourse: CoursesType = response.data.course;
+      setCourseData(fetchedCourse);
+    } catch (error: any) {
+      console.error("Lỗi khi tải dữ liệu khóa học:", error);
+      Toast.show("Không thể tải thông tin khóa học", { type: "danger" });
+      router.back();
+    }
+  };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        loadCourseData(),
+        courseData ? fetchCourseContent() : Promise.resolve(),
+      ]);
+    } catch (error) {
+      console.error("Lỗi khi làm mới dữ liệu:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [courseData]);
 
   useEffect(() => {
-    const fetchCourseData = async () => {
+    const fetchInitialData = async () => {
+      setIsLoading(true);
       try {
-        setIsLoading(true);
-        if (typeof courseId !== "string" || !courseId) {
-          throw new Error("ID khóa học không hợp lệ");
-        }
-
-        const response = await axios.get(`${SERVER_URI}/get-course/${courseId}`);
-        const fetchedCourse: CoursesType = response.data.course;
-        setCourseData(fetchedCourse);
-      } catch (error: any) {
-        console.error("Lỗi khi tải dữ liệu khóa học:", error);
-        Toast.show("Không thể tải thông tin khóa học", { type: "danger" });
-        router.back();
+        await loadCourseData();
       } finally {
         setIsLoading(false);
       }
     };
-
-    fetchCourseData();
+    fetchInitialData();
   }, [courseId]);
 
   useEffect(() => {
@@ -74,16 +97,20 @@ export default function CourseAccessScreen() {
     const accessToken = await AsyncStorage.getItem("access_token");
     const refreshToken = await AsyncStorage.getItem("refresh_token");
     try {
-      const res = await axios.get(`${SERVER_URI}/get-course-content/${courseData._id}`, {
-        headers: {
-          "access-token": accessToken,
-          "refresh-token": refreshToken,
-        },
-      });
+      const res = await axios.get(
+        `${SERVER_URI}/get-course-content/${courseData._id}`,
+        {
+          headers: {
+            "access-token": accessToken,
+            "refresh-token": refreshToken,
+          },
+        }
+      );
       const content = res.data.content || [];
       const validContent = content.map((item: CourseDataType) => ({
         ...item,
-        videoUrl: item.videoUrl && isValidUrl(item.videoUrl) ? item.videoUrl : "",
+        videoUrl:
+          item.videoUrl && isValidUrl(item.videoUrl) ? item.videoUrl : "",
       }));
       setCourseContentData(validContent);
     } catch (error) {
@@ -113,9 +140,13 @@ export default function CourseAccessScreen() {
       return;
     }
 
-    const isPurchased = user?.courses?.find((course: any) => course.courseId === courseData._id);
+    const isPurchased = user?.courses?.find(
+      (course: any) => course.courseId === courseData._id
+    );
     if (!isPurchased) {
-      Toast.show("Bạn chưa mua khóa học này, không thể gửi đánh giá", { type: "warning" });
+      Toast.show("Bạn chưa mua khóa học này, không thể gửi đánh giá", {
+        type: "warning",
+      });
       return;
     }
 
@@ -152,7 +183,8 @@ export default function CourseAccessScreen() {
     } catch (error: any) {
       console.error("Lỗi khi gửi đánh giá:", error);
       Toast.show(
-        error.response?.data?.message || "Không thể gửi đánh giá, vui lòng thử lại",
+        error.response?.data?.message ||
+          "Không thể gửi đánh giá, vui lòng thử lại",
         { type: "danger" }
       );
     }
@@ -175,13 +207,23 @@ export default function CourseAccessScreen() {
     return stars;
   };
 
-  const renderLessonItem = ({ item, index }: { item: CourseDataType; index: number }) => (
+  const renderLessonItem = ({
+    item,
+    index,
+  }: {
+    item: CourseDataType;
+    index: number;
+  }) => (
     <TouchableOpacity
       style={styles.lessonItem}
       onPress={() =>
         router.push({
           pathname: "/(routes)/lesson",
-          params: { courseId: courseData?._id, lessonId: item._id, lessonIndex: index },
+          params: {
+            courseId: courseData?._id,
+            lessonId: item._id,
+            lessonIndex: index,
+          },
         })
       }
     >
@@ -205,6 +247,14 @@ export default function CourseAccessScreen() {
       data={[1]}
       keyExtractor={() => "course-access"}
       renderItem={() => null}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={["#2467EC"]}
+          tintColor="#2467EC"
+        />
+      }
       ListHeaderComponent={
         <>
           {/* Danh sách bài học */}
@@ -217,12 +267,18 @@ export default function CourseAccessScreen() {
                 onPress={() =>
                   router.push({
                     pathname: "/(routes)/lesson",
-                    params: { courseId: courseData?._id, lessonId: item._id, lessonIndex: index },
+                    params: {
+                      courseId: courseData?._id,
+                      lessonId: item._id,
+                      lessonIndex: index,
+                    },
                   })
                 }
               >
                 <Text style={styles.lessonNumber}>{index + 1}.</Text>
-                <Text style={styles.lessonTitle}>{item.title || "Không có tiêu đề"}</Text>
+                <Text style={styles.lessonTitle}>
+                  {item.title || "Không có tiêu đề"}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -295,7 +351,10 @@ export default function CourseAccessScreen() {
                   />
                   <View style={styles.submitButtonContainer}>
                     <TouchableOpacity
-                      style={[styles.button, review === "" && styles.disabledButton]}
+                      style={[
+                        styles.button,
+                        review === "" && styles.disabledButton,
+                      ]}
                       disabled={review === ""}
                       onPress={() => handleReviewSubmit()}
                     >
@@ -306,7 +365,10 @@ export default function CourseAccessScreen() {
               )}
               {courseData?.reviews?.length > 0 ? (
                 courseData.reviews.map((item: ReviewType, index: number) => (
-                  <ReviewCard key={item.user._id + index.toString()} item={item} />
+                  <ReviewCard
+                    key={item.user._id + index.toString()}
+                    item={item}
+                  />
                 ))
               ) : (
                 <Text style={styles.emptyText}>Chưa có đánh giá nào</Text>

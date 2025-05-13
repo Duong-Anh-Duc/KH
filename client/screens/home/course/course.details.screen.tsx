@@ -19,8 +19,17 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useState, useCallback } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  RefreshControl,
+} from "react-native";
 import { Toast } from "react-native-toast-notifications";
 
 interface User {
@@ -100,6 +109,7 @@ interface CoursesType {
 }
 
 export default function CourseDetailScreen() {
+  const [refreshing, setRefreshing] = useState(false);
   const [activeButton, setActiveButton] = useState("Về Khóa Học");
   const { user, loading: userLoading, fetchUser } = useUser();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -108,7 +118,8 @@ export default function CourseDetailScreen() {
   const [checkPurchased, setCheckPurchased] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
-  const { addToCart, removeFromCart, cartItems, errorMessage, clearError } = useCart();
+  const { addToCart, removeFromCart, cartItems, errorMessage, clearError } =
+    useCart();
 
   const isCourseInCart = cartItems.some((item) => item.courseId === courseId);
 
@@ -135,14 +146,19 @@ export default function CourseDetailScreen() {
       if (user) {
         const accessToken = await AsyncStorage.getItem("access_token");
         const refreshToken = await AsyncStorage.getItem("refresh_token");
-        const favoritesResponse = await axios.get(`${SERVER_URI}/get-favorite-courses`, {
-          headers: {
-            "access-token": accessToken,
-            "refresh-token": refreshToken,
-          },
-        });
+        const favoritesResponse = await axios.get(
+          `${SERVER_URI}/get-favorite-courses`,
+          {
+            headers: {
+              "access-token": accessToken,
+              "refresh-token": refreshToken,
+            },
+          }
+        );
         const favoriteCourses = favoritesResponse.data.courses || [];
-        setIsFavorite(favoriteCourses.some((course: CoursesType) => course._id === courseId));
+        setIsFavorite(
+          favoriteCourses.some((course: CoursesType) => course._id === courseId)
+        );
       }
     } catch (error: any) {
       console.error("Lỗi khi tải dữ liệu khóa học:", error);
@@ -153,13 +169,38 @@ export default function CourseDetailScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchCourseData();
-  }, [courseId, user]);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetchCourseData(),
+        user ? fetchUser() : Promise.resolve(),
+      ]);
+    } catch (error) {
+      console.error("Lỗi khi làm mới dữ liệu:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [user]);
 
   useEffect(() => {
-    if (user && courseData && user.courses?.find((i: any) => i.courseId === courseData?._id)) {
-      setCheckPurchased(true);
+    const loadInitialData = async () => {
+      setIsLoading(true);
+      try {
+        await fetchCourseData();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadInitialData();
+  }, [courseId]);
+
+  useEffect(() => {
+    if (user && courseData) {
+      const isPurchased = user.courses?.find(
+        (i: any) => i.courseId === courseData?._id
+      );
+      setCheckPurchased(!!isPurchased);
     } else {
       setCheckPurchased(false);
     }
@@ -204,11 +245,14 @@ export default function CourseDetailScreen() {
       clearError();
     } catch (error: any) {
       console.error("Lỗi khi xóa khỏi giỏ hàng:", error);
-      Toast.show(error.response?.data?.message || "Không thể xóa sản phẩm khỏi giỏ hàng", {
-        type: "danger",
-        placement: "top",
-        duration: 3000,
-      });
+      Toast.show(
+        error.response?.data?.message || "Không thể xóa sản phẩm khỏi giỏ hàng",
+        {
+          type: "danger",
+          placement: "top",
+          duration: 3000,
+        }
+      );
     }
   };
 
@@ -224,7 +268,9 @@ export default function CourseDetailScreen() {
       const refreshToken = await AsyncStorage.getItem("refresh_token");
 
       if (!accessToken || !refreshToken || !user) {
-        Toast.show("Vui lòng đăng nhập để truy cập khóa học", { type: "warning" });
+        Toast.show("Vui lòng đăng nhập để truy cập khóa học", {
+          type: "warning",
+        });
         router.push("/(routes)/login");
         return;
       }
@@ -243,12 +289,16 @@ export default function CourseDetailScreen() {
     } catch (error: any) {
       console.error("Lỗi khi truy cập khóa học:", error);
       if (error.response?.status === 401) {
-        Toast.show("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.", { type: "warning" });
+        Toast.show("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.", {
+          type: "warning",
+        });
         await AsyncStorage.removeItem("access_token");
         await AsyncStorage.removeItem("refresh_token");
         router.push("/(routes)/login");
       } else {
-        Toast.show("Bạn không có quyền truy cập khóa học này", { type: "danger" });
+        Toast.show("Bạn không có quyền truy cập khóa học này", {
+          type: "danger",
+        });
       }
     }
   };
@@ -268,7 +318,9 @@ export default function CourseDetailScreen() {
         return;
       }
 
-      const endpoint = isFavorite ? "/remove-from-favorites" : "/add-to-favorites";
+      const endpoint = isFavorite
+        ? "/remove-from-favorites"
+        : "/add-to-favorites";
       const response = await axios.post(
         `${SERVER_URI}${endpoint}`,
         { courseId },
@@ -282,7 +334,10 @@ export default function CourseDetailScreen() {
 
       setIsFavorite(!isFavorite);
       Toast.show(
-        response.data.message || (isFavorite ? "Đã xóa khỏi danh sách yêu thích" : "Đã thêm vào danh sách yêu thích thành công"),
+        response.data.message ||
+          (isFavorite
+            ? "Đã xóa khỏi danh sách yêu thích"
+            : "Đã thêm vào danh sách yêu thích thành công"),
         {
           type: "success",
           placement: "top",
@@ -342,12 +397,25 @@ export default function CourseDetailScreen() {
       {errorMessage && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{errorMessage}</Text>
-          <TouchableOpacity onPress={clearError} style={styles.clearErrorButton}>
+          <TouchableOpacity
+            onPress={clearError}
+            style={styles.clearErrorButton}
+          >
             <Ionicons name="close-circle" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
       )}
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#009990"]}
+            tintColor="#009990"
+          />
+        }
+      >
         <View style={{ marginHorizontal: 16 }}>
           <View
             style={{
@@ -416,7 +484,10 @@ export default function CourseDetailScreen() {
             />
           </TouchableOpacity>
           <Image
-            source={{ uri: courseData?.thumbnail.url || "https://via.placeholder.com/230" }}
+            source={{
+              uri:
+                courseData?.thumbnail.url || "https://via.placeholder.com/230",
+            }}
             style={{ width: "100%", height: 230, borderRadius: 6 }}
           />
         </View>
@@ -471,21 +542,23 @@ export default function CourseDetailScreen() {
             Điều Kiện Tiên Quyết Của Khóa Học
           </Text>
           {courseData?.prerequisites?.length > 0 ? (
-            courseData.prerequisites.map((item: PrerequisiteType, index: number) => (
-              <View
-                key={index}
-                style={{
-                  flexDirection: "row",
-                  width: "95%",
-                  paddingVertical: 5,
-                }}
-              >
-                <Ionicons name="checkmark-done-outline" size={18} />
-                <Text style={{ paddingLeft: 5, fontSize: 16 }}>
-                  {item.title}
-                </Text>
-              </View>
-            ))
+            courseData.prerequisites.map(
+              (item: PrerequisiteType, index: number) => (
+                <View
+                  key={index}
+                  style={{
+                    flexDirection: "row",
+                    width: "95%",
+                    paddingVertical: 5,
+                  }}
+                >
+                  <Ionicons name="checkmark-done-outline" size={18} />
+                  <Text style={{ paddingLeft: 5, fontSize: 16 }}>
+                    {item.title}
+                  </Text>
+                </View>
+              )
+            )
           ) : (
             <Text style={{ fontSize: 16, color: "#575757" }}>
               Không có điều kiện tiên quyết
