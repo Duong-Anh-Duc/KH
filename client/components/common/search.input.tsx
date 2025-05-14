@@ -88,15 +88,28 @@ export default function SearchInput({
   }, []);
 
   useEffect(() => {
-    if (value.trim() === "") {
-      setSuggestions([]);
+    if (!homeScreen) {
+      if (value.trim() === "") {
+        setFilteredCourses(courses);
+        setSuggestions([]);
+      } else {
+        const filteredResults = courses.filter((course) =>
+          course.name.toLowerCase().includes(value.toLowerCase())
+        );
+        setFilteredCourses(filteredResults);
+        setSuggestions(filteredResults);
+      }
     } else {
-      const filteredSuggestions = courses.filter((course) =>
-        course.name.toLowerCase().includes(value.toLowerCase())
-      );
-      setSuggestions(filteredSuggestions);
+      if (value.trim() === "") {
+        setSuggestions([]);
+      } else {
+        const filteredSuggestions = courses.filter((course) =>
+          course.name.toLowerCase().includes(value.toLowerCase())
+        );
+        setSuggestions(filteredSuggestions);
+      }
     }
-  }, [value, courses]);
+  }, [value, courses, homeScreen]);
 
   // Cập nhật kết quả khi bộ lọc thay đổi
   useEffect(() => {
@@ -265,12 +278,14 @@ export default function SearchInput({
       </View>
 
       {suggestions.length > 0 && (
-        <FlatList
-          data={suggestions}
-          keyExtractor={(item: CoursesType) => item._id}
-          renderItem={renderSuggestionItem}
-          style={styles.suggestionList}
-        />
+        <View style={{ flex: 1, paddingHorizontal: 10 }}>
+          <FlatList
+            data={suggestions}
+            keyExtractor={(item: CoursesType) => item._id}
+            renderItem={renderSuggestionItem}
+            style={styles.suggestionList}
+          />
+        </View>
       )}
 
       {/* Modal bộ lọc */}
@@ -330,7 +345,7 @@ export default function SearchInput({
         </View>
       </Modal>
 
-      <View style={{ paddingHorizontal: 10 }}>
+      <View style={{ flex: 1, paddingHorizontal: 10 }}>
         <FlatList
           data={filteredCourses}
           keyExtractor={(item: CoursesType) => item._id}

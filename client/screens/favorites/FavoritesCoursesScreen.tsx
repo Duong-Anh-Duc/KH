@@ -104,11 +104,23 @@ export default function FavoriteCoursesScreen() {
   }
 
   return (
-    <LinearGradient colors={["#009990", "#F6F7F9"]} style={{ flex: 1 }}>
+    <LinearGradient
+      colors={["#009990", "#F6F7F9"]}
+      style={{ flex: 1, paddingTop: 50 }}
+    >
       <View style={{ flex: 1 }}>
-        <View style={{ marginTop: 15 }}>
-          <Header />
-        </View>
+        <Header />
+        <Text
+          style={{
+            fontSize: 24,
+            fontFamily: "Raleway_700Bold",
+            color: "#000",
+            textAlign: "center",
+            marginBottom: 2,
+          }}
+        >
+          Danh sách khóa học yêu thích
+        </Text>
 
         {loading && !refreshing ? (
           <View

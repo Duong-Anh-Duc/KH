@@ -3,7 +3,13 @@ import socket, { connectSocket, disconnectSocket } from "@/utils/socket";
 import { SERVER_URI } from "@/utils/uri";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
-import React, { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { Toast } from "react-native-toast-notifications";
 
 interface IUser {
@@ -45,7 +51,9 @@ interface UserProviderProps {
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [user, setUser] = useState<IUser | null>(null);
   const [loading, setLoading] = useState(false);
-  const [notifications, setNotifications] = useState<Array<{ id: string; message: string; type: string }>>([]);
+  const [notifications, setNotifications] = useState<
+    Array<{ id: string; message: string; type: string }>
+  >([]);
 
   const fetchUser = async () => {
     setLoading(true);
@@ -110,12 +118,15 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           setUser(null);
         }
       } else {
-        Toast.show("Không thể lấy thông tin người dùng. Vui lòng thử lại sau.", {
-          type: "danger",
-          placement: "top",
-          duration: 4000,
-          animationType: "zoom-in",
-        });
+        Toast.show(
+          "Không thể lấy thông tin người dùng. Vui lòng thử lại sau.",
+          {
+            type: "danger",
+            placement: "top",
+            duration: 4000,
+            animationType: "zoom-in",
+          }
+        );
       }
     } finally {
       setLoading(false);
@@ -138,7 +149,8 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         },
       });
 
-      const dbNotifications: INotification[] = response.data.notifications || [];
+      const dbNotifications: INotification[] =
+        response.data.notifications || [];
       const formattedNotifications = dbNotifications.map((notification) => ({
         id: notification._id,
         message: notification.message,
@@ -196,12 +208,15 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           fetchNotifications();
         });
 
-        socket.on("newLesson", (data: { message: string; courseId: string; lesson: any }) => {
-          console.log("Received newLesson event:", data);
-          addNotification(data.message, "newLesson");
-          Toast.show(data.message, { type: "info" });
-          fetchNotifications();
-        });
+        socket.on(
+          "newLesson",
+          (data: { message: string; courseId: string; lesson: any }) => {
+            console.log("Received newLesson event:", data);
+            addNotification(data.message, "newLesson");
+            Toast.show(data.message, { type: "info" });
+            fetchNotifications();
+          }
+        );
 
         socket.on("courseUpdated", (data: { message: string; course: any }) => {
           console.log("Received courseUpdated event:", data);
@@ -210,12 +225,20 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           fetchNotifications();
         });
 
-        socket.on("newQuestionReply", (data: { message: string; courseId: string; contentId: string; questionId: string }) => {
-          console.log("Received newQuestionReply event:", data);
-          addNotification(data.message, "newQuestionReply");
-          Toast.show(data.message, { type: "info" });
-          fetchNotifications();
-        });
+        socket.on(
+          "newQuestionReply",
+          (data: {
+            message: string;
+            courseId: string;
+            contentId: string;
+            questionId: string;
+          }) => {
+            console.log("Received newQuestionReply event:", data);
+            addNotification(data.message, "newQuestionReply");
+            Toast.show(data.message, { type: "info" });
+            fetchNotifications();
+          }
+        );
 
         socket.on("userUpdated", (data: { message: string; user: IUser }) => {
           console.log("Received userUpdated event:", data);
@@ -249,8 +272,19 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     };
   }, [user?._id]);
 
+  console.log("user", user);
+
   return (
-    <UserContext.Provider value={{ user, loading, setUser, fetchUser, notifications, clearNotifications }}>
+    <UserContext.Provider
+      value={{
+        user,
+        loading,
+        setUser,
+        fetchUser,
+        notifications,
+        clearNotifications,
+      }}
+    >
       {children}
     </UserContext.Provider>
   );

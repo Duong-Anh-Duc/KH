@@ -108,6 +108,22 @@ export default function CartScreen() {
         setIsLoading(true);
         await fetchCart();
         await fetchEnrolledCourses();
+
+        // Thêm logic kiểm tra và xóa khóa học đã mua khỏi giỏ hàng
+        const enrolledCoursesData = await AsyncStorage.getItem(
+          "enrolledCourses"
+        );
+        if (enrolledCoursesData) {
+          const enrolledCourseIds = JSON.parse(enrolledCoursesData);
+          for (const courseId of enrolledCourseIds) {
+            if (cartItems.some((item) => item.courseId === courseId)) {
+              await removeFromCart(courseId);
+              console.log(
+                `Đã xóa khóa học ${courseId} khỏi giỏ hàng vì đã được mua`
+              );
+            }
+          }
+        }
       } catch (error: any) {
         console.error("Lỗi khi tải dữ liệu giỏ hàng:", {
           message: error.message,
@@ -163,8 +179,8 @@ export default function CartScreen() {
         ? prev.filter((id) => id !== courseId)
         : [...prev, courseId]
     );
-    console.log("Danh sách khóa học đã chọn:", selectedCourseIds);
   };
+  console.log("Danh sách khóa học đã chọn:", selectedCourseIds);
 
   const handleCourseDetails = (item: CartItemType) => {
     console.log("Xem chi tiết khóa học:", item.courseId);
@@ -378,11 +394,13 @@ export default function CartScreen() {
       setIsLoading(true);
       console.log("Bắt đầu tạo đơn hàng...");
 
+      console.log("paymentResponse:", paymentResponse);
+      console.log("paymentIntentDetails:", paymentIntentDetails);
+
       const accessToken = await AsyncStorage.getItem("access_token");
       const refreshToken = await AsyncStorage.getItem("refresh_token");
 
       if (!accessToken || !refreshToken) {
-        console.log("Không có token, chuyển hướng đến màn hình đăng nhập.");
         Toast.show("Vui lòng đăng nhập để tạo đơn hàng", { type: "warning" });
         router.push("/(routes)/login");
         return;
@@ -428,6 +446,10 @@ export default function CartScreen() {
         "enrolledCourses",
         JSON.stringify(newEnrolledCourses)
       );
+      const currentEnrolledCourses1 = await AsyncStorage.getItem(
+        "enrolledCourses"
+      );
+      console.log("currentEnrolledCourses1:", currentEnrolledCourses1);
 
       setOrderSuccess(true);
       setOrderDetails(response.data.order);

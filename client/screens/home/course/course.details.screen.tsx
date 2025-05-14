@@ -128,6 +128,48 @@ export default function CourseDetailScreen() {
 
   const isCourseInCart = cartItems.some((item) => item.courseId === courseId);
 
+  // Kiểm tra trạng thái mua khóa học từ user context
+  const checkPurchaseStatus = useCallback(() => {
+    if (user && user.courses && courseId) {
+      const isPurchased = user.courses.some(
+        (course) => course.courseId === courseId
+      );
+      console.log("Kiểm tra khóa học đã mua:", {
+        courseId,
+        isPurchased,
+        userCourses: user.courses,
+      });
+      setCheckPurchased(isPurchased);
+    } else {
+      setCheckPurchased(false);
+    }
+  }, [user, courseId]);
+
+  // Sử dụng useFocusEffect để kiểm tra mỗi khi màn hình được focus
+  useFocusEffect(
+    useCallback(() => {
+      checkPurchaseStatus();
+    }, [checkPurchaseStatus])
+  );
+
+  // Kiểm tra khi user hoặc courseId thay đổi
+  useEffect(() => {
+    checkPurchaseStatus();
+  }, [user, courseId, checkPurchaseStatus]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchUser();
+      checkPurchaseStatus();
+    } catch (error) {
+      // Không hiển thị thông báo lỗi khi refresh
+      console.log("Làm mới trạng thái khóa học");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchUser, checkPurchaseStatus]);
+
   const fetchCourseData = async () => {
     try {
       setIsLoading(true);
@@ -174,59 +216,17 @@ export default function CourseDetailScreen() {
     }
   };
 
-  const checkEnrollmentStatus = async () => {
-    try {
-      const enrolledCoursesStr = await AsyncStorage.getItem("enrolledCourses");
-      if (enrolledCoursesStr) {
-        const enrolledCourses = JSON.parse(enrolledCoursesStr);
-        const isPurchased = enrolledCourses.includes(courseId);
-        console.log("Trạng thái khóa học:", { courseId, isPurchased });
-        setCheckPurchased(isPurchased);
-      }
-    } catch (error) {
-      console.log("Lỗi khi kiểm tra trạng thái đăng ký:", error);
-    }
-  };
-
-  // Sử dụng useFocusEffect để kiểm tra trạng thái mỗi khi màn hình được focus
-  useFocusEffect(
-    useCallback(() => {
-      checkEnrollmentStatus();
-    }, [courseId])
-  );
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await checkEnrollmentStatus();
-      if (user) {
-        await fetchUser();
-      }
-    } catch (error) {
-      console.log("Lỗi khi làm mới dữ liệu:", error);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [user, courseId]);
-
   useEffect(() => {
     const loadInitialData = async () => {
       setIsLoading(true);
       try {
-        await Promise.all([fetchCourseData(), checkEnrollmentStatus()]);
+        await Promise.all([fetchCourseData(), checkPurchaseStatus()]);
       } finally {
         setIsLoading(false);
       }
     };
     loadInitialData();
   }, [courseId]);
-
-  // Thêm useEffect để lắng nghe sự thay đổi của user
-  useEffect(() => {
-    if (user) {
-      checkEnrollmentStatus();
-    }
-  }, [user]);
 
   const handleAddToCart = async () => {
     if (!courseData) return;
@@ -438,9 +438,6 @@ export default function CourseDetailScreen() {
           }
         >
           <View style={styles.thumbnailContainer}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>Bán Chạy Nhất</Text>
-            </View>
             <View style={styles.ratingContainer}>
               <FontAwesome name="star" size={14} color={"#FFB800"} />
               <Text style={styles.ratingText}>{courseData?.ratings ?? 0}</Text>
@@ -534,12 +531,14 @@ export default function CourseDetailScreen() {
             )}
           </View>
           <View style={styles.tabContainer}>
-            {["Về Khóa Học", "Bài Giảng", "Đánh Giá"].map((tab) => (
+            {["Về Khóa Học", "Bài Giảng", "Đánh Giá"].map((tab, index) => (
               <TouchableOpacity
                 key={tab}
                 style={[
                   styles.tabButton,
                   activeButton === tab && styles.activeTabButton,
+                  index === 0 && styles.firstTab,
+                  index === 2 && styles.lastTab,
                 ]}
                 onPress={() => setActiveButton(tab)}
               >
@@ -822,18 +821,24 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: "row",
-    justifyContent: "center",
+    justifyContent: "space-between",
     marginHorizontal: 15,
     backgroundColor: "#E1E9F8",
     borderRadius: 25,
-    paddingVertical: 10,
+    padding: 5,
     marginVertical: 15,
   },
   tabButton: {
+    flex: 1,
     paddingVertical: 10,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    marginHorizontal: 5,
+    alignItems: "center",
+    borderRadius: 20,
+  },
+  firstTab: {
+    marginRight: 2,
+  },
+  lastTab: {
+    marginLeft: 2,
   },
   activeTabButton: {
     backgroundColor: "#2467EC",
@@ -841,7 +846,8 @@ const styles = StyleSheet.create({
   tabButtonText: {
     color: "#333",
     fontFamily: "Nunito_600SemiBold",
-    fontSize: 16,
+    fontSize: 14,
+    textAlign: "center",
   },
   activeTabButtonText: {
     color: "#fff",
@@ -894,16 +900,10 @@ const styles = StyleSheet.create({
     fontFamily: "Nunito_500Medium",
   },
   footer: {
-    backgroundColor: "#fff",
     marginHorizontal: 15,
     paddingVertical: 15,
     marginBottom: 10,
     borderRadius: 12,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
   },
   accessButton: {
     backgroundColor: "#009990",
@@ -911,14 +911,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     width: "100%",
     alignItems: "center",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
   },
   cartButton: {
-    backgroundColor: "#009990",
     paddingVertical: 16,
     borderRadius: 8,
     width: "100%",
