@@ -1,13 +1,17 @@
 // frontend/utils/socket.ts
 import { io } from "socket.io-client";
 
-const socket = io("http://192.168.1.7:8001", {
+const socket = io("http://192.168.0.102:8001", {
   autoConnect: false,
   transports: ["websocket"],
   query: {},
 });
 
-export const connectSocket = async (accessToken: string, refreshToken: string, userId?: string) => {
+export const connectSocket = async (
+  accessToken: string,
+  refreshToken: string,
+  userId?: string
+) => {
   socket.auth = { accessToken, refreshToken };
   if (userId) {
     socket.io.opts.query = { userId };
@@ -21,4 +25,3 @@ export const disconnectSocket = () => {
 };
 
 export default socket;
-

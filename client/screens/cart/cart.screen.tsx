@@ -6,7 +6,7 @@ import { useStripe } from "@stripe/stripe-react-native";
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -17,6 +17,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  SafeAreaView,
 } from "react-native";
 import { Toast } from "react-native-toast-notifications";
 
@@ -143,15 +144,13 @@ export default function CartScreen() {
     }
   };
 
-  const calculateTotalPrice = () => {
-    const totalPrice = cartItems
+  const totalPrice = useMemo(() => {
+    return cartItems
       .filter((item) => selectedCourseIds.includes(item.courseId))
       .reduce((total: number, item: CartItemType) => {
         return total + Number(item.priceAtPurchase);
       }, 0);
-    console.log("Tổng giá tính toán:", totalPrice);
-    return totalPrice;
-  };
+  }, [cartItems, selectedCourseIds]);
 
   const formatPrice = (price: number) => {
     return price.toLocaleString("vi-VN");
@@ -276,7 +275,7 @@ export default function CartScreen() {
         return;
       }
 
-      const amount = calculateTotalPrice();
+      const amount = totalPrice;
       if (amount < 12000) {
         // Tối thiểu 12,000 VNĐ (khoảng 50 cents USD)
         Toast.show("Số tiền thanh toán tối thiểu là 12,000 VNĐ", {
@@ -382,23 +381,12 @@ export default function CartScreen() {
       const accessToken = await AsyncStorage.getItem("access_token");
       const refreshToken = await AsyncStorage.getItem("refresh_token");
 
-      console.log("Access Token:", accessToken);
-      console.log("Refresh Token:", refreshToken);
-
       if (!accessToken || !refreshToken) {
         console.log("Không có token, chuyển hướng đến màn hình đăng nhập.");
         Toast.show("Vui lòng đăng nhập để tạo đơn hàng", { type: "warning" });
         router.push("/(routes)/login");
         return;
       }
-
-      console.log("Dữ liệu gửi lên API /create-mobile-order:", {
-        selectedCourseIds,
-        payment_info: {
-          ...paymentResponse,
-          paymentIntent: paymentIntentDetails,
-        },
-      });
 
       const response = await axios.post(
         `${SERVER_URI}/create-mobile-order`,
@@ -417,7 +405,29 @@ export default function CartScreen() {
         }
       );
 
-      console.log("Phản hồi từ API /create-mobile-order:", response.data);
+      // Cập nhật danh sách khóa học đã đăng ký trong AsyncStorage
+      const currentEnrolledCourses = await AsyncStorage.getItem(
+        "enrolledCourses"
+      );
+      let enrolledCourses = [];
+
+      if (currentEnrolledCourses) {
+        enrolledCourses = JSON.parse(currentEnrolledCourses);
+      }
+
+      // Thêm các khóa học mới vào danh sách
+      const newEnrolledCourses = Array.from(
+        new Set([...enrolledCourses, ...selectedCourseIds])
+      );
+      console.log(
+        "Cập nhật danh sách khóa học đã đăng ký:",
+        newEnrolledCourses
+      );
+
+      await AsyncStorage.setItem(
+        "enrolledCourses",
+        JSON.stringify(newEnrolledCourses)
+      );
 
       setOrderSuccess(true);
       setOrderDetails(response.data.order);
@@ -425,18 +435,12 @@ export default function CartScreen() {
       await fetchEnrolledCourses();
       Toast.show("Thanh toán thành công!", { type: "success" });
     } catch (error: any) {
-      console.error("Lỗi khi tạo đơn hàng:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        config: error.config,
-      });
+      console.error("Lỗi khi tạo đơn hàng:", error);
       Toast.show(error.response?.data?.message || "Lỗi khi tạo đơn hàng", {
         type: "danger",
       });
     } finally {
       setIsLoading(false);
-      console.log("Hoàn tất tạo đơn hàng.");
     }
   };
 
@@ -451,245 +455,248 @@ export default function CartScreen() {
 
   return (
     <LinearGradient colors={["#009990", "#F6F7F9"]} style={styles.container}>
-      {orderSuccess ? (
-        <View style={styles.successContainer}>
-          <Ionicons
-            name="checkmark-circle"
-            size={80}
-            color="#009990"
-            style={styles.successIcon}
-          />
-          <Text style={styles.successTitle}>Thanh Toán Thành Công!</Text>
-          <Text style={styles.successText}>Cảm ơn bạn đã mua hàng!</Text>
-          <View style={styles.orderDetails}>
-            <Text style={styles.orderText}>
-              Mã đơn hàng: {orderDetails?._id?.slice(0, 6) ?? "N/A"}
-            </Text>
-            <Text style={styles.orderText}>
-              Trạng thái: {orderDetails?.status ?? "N/A"}
-            </Text>
-            <Text style={styles.orderText}>
-              Tổng giá: {orderDetails?.totalPrice?.toFixed(2) ?? "0"} VNĐ
-            </Text>
-            <Text style={styles.orderText}>
-              Số lượng khóa học: {orderDetails?.courses?.length ?? 0}
-            </Text>
-            <Text style={styles.orderText}>
-              Người mua: {orderDetails?.userName ?? "N/A"}
-            </Text>
-            <Text style={styles.orderText}>
-              Phương thức thanh toán:{" "}
-              {orderDetails?.payment_info?.paymentMethod ?? "N/A"}
-            </Text>
-            <Text style={styles.orderText}>
-              Thời gian thanh toán:{" "}
-              {orderDetails?.payment_info?.created
-                ? new Date(
-                    orderDetails.payment_info.created * 1000
-                  ).toLocaleString()
-                : "N/A"}
-            </Text>
-            <Text style={styles.orderText}>
-              Bạn sẽ nhận được email thông báo!
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => {
-              setOrderSuccess(false);
-              router.push("/(tabs)");
-            }}
-          >
-            <Text style={styles.backButtonText}>Quay lại Trang chủ</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={{ flex: 1 }}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={24} color="#333" />
-            </TouchableOpacity>
-            <Text style={styles.headerText}>Giỏ Hàng</Text>
-            <View style={styles.cartCount}>
-              <Text style={styles.cartCountText}>{cartItems.length}</Text>
-            </View>
-          </View>
-          <FlatList<CartItemType>
-            data={cartItems}
-            keyExtractor={(item) => item.courseId || Math.random().toString()}
-            renderItem={({ item }) => (
-              <View style={styles.cartItem}>
-                <TouchableOpacity
-                  style={styles.checkbox}
-                  onPress={() => toggleSelection(item.courseId)}
-                >
-                  <Ionicons
-                    name={
-                      selectedCourseIds.includes(item.courseId)
-                        ? "checkbox"
-                        : "square-outline"
-                    }
-                    size={24}
-                    color={
-                      selectedCourseIds.includes(item.courseId)
-                        ? "#009990"
-                        : "#808080"
-                    }
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.courseImageContainer}
-                  onPress={() => handleCourseDetails(item)}
-                >
-                  <Image
-                    source={{
-                      uri:
-                        item.thumbnail?.url || "https://via.placeholder.com/80",
-                    }}
-                    style={styles.courseImage}
-                  />
-                </TouchableOpacity>
-                <View style={styles.courseDetails}>
-                  <TouchableOpacity onPress={() => handleCourseDetails(item)}>
-                    <Text style={styles.courseName}>{item.courseName}</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.coursePrice}>
-                    {item.priceAtPurchase.toLocaleString("vi-VN")} VNĐ
-                  </Text>
-                  {enrolledCourses.includes(item.courseId) ? (
-                    <TouchableOpacity
-                      style={styles.accessButton}
-                      onPress={() => handleAccessCourse(item.courseId)}
-                    >
-                      <MaterialIcons
-                        name="play-circle-outline"
-                        size={20}
-                        color="#fff"
-                      />
-                      <Text style={styles.accessButtonText}>
-                        Truy cập khóa học
-                      </Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <TouchableOpacity
-                      style={styles.removeButton}
-                      onPress={() => handleRemoveItem(item.courseId)}
-                    >
-                      <MaterialIcons name="delete" size={20} color="#fff" />
-                      <Text style={styles.removeButtonText}>Xóa</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            )}
-            ListEmptyComponent={() => (
-              <View style={styles.emptyContainer}>
-                <Ionicons
-                  name="cart-outline"
-                  size={80}
-                  color="#575757"
-                  style={styles.emptyIcon}
-                />
-                <Text style={styles.emptyText}>
-                  Giỏ Hàng Của Bạn Đang Trống!
-                </Text>
-                <TouchableOpacity
-                  style={styles.shopButton}
-                  onPress={() => router.push("/(tabs)")}
-                >
-                  <Text style={styles.shopButtonText}>Khám phá khóa học</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-            initialNumToRender={5}
-            windowSize={10}
-            removeClippedSubviews={true}
-            getItemLayout={(data, index) => ({
-              length: 120,
-              offset: 120 * index,
-              index,
-            })}
-            contentContainerStyle={{ paddingBottom: 20 }}
-          />
-          {cartItems.length > 0 && (
-            <View style={styles.footer}>
-              <Text style={styles.totalText}>
-                Tổng Cộng: {formatPrice(calculateTotalPrice())} VNĐ
+      <SafeAreaView style={{ flex: 1 }}>
+        {orderSuccess ? (
+          <View style={styles.successContainer}>
+            <Ionicons
+              name="checkmark-circle"
+              size={80}
+              color="#009990"
+              style={styles.successIcon}
+            />
+            <Text style={styles.successTitle}>Thanh Toán Thành Công!</Text>
+            <Text style={styles.successText}>Cảm ơn bạn đã mua hàng!</Text>
+            <View style={styles.orderDetails}>
+              <Text style={styles.orderText}>
+                Mã đơn hàng: {orderDetails?._id?.slice(0, 6) ?? "N/A"}
               </Text>
-              <TouchableOpacity
-                style={[
-                  styles.checkoutButton,
-                  {
-                    opacity: selectedCourseIds.length === 0 ? 0.5 : 1,
-                  },
-                ]}
-                onPress={handleShowModal}
-                disabled={selectedCourseIds.length === 0 || isLoading}
-              >
-                {isLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.checkoutButtonText}>
-                    Thanh Toán ({selectedCourseIds.length})
-                  </Text>
-                )}
-              </TouchableOpacity>
+              <Text style={styles.orderText}>
+                Trạng thái: {orderDetails?.status ?? "N/A"}
+              </Text>
+              <Text style={styles.orderText}>
+                Tổng giá: {orderDetails?.totalPrice?.toFixed(2) ?? "0"} VNĐ
+              </Text>
+              <Text style={styles.orderText}>
+                Số lượng khóa học: {orderDetails?.courses?.length ?? 0}
+              </Text>
+              <Text style={styles.orderText}>
+                Người mua: {orderDetails?.userName ?? "N/A"}
+              </Text>
+              <Text style={styles.orderText}>
+                Phương thức thanh toán:{" "}
+                {orderDetails?.payment_info?.paymentMethod ?? "N/A"}
+              </Text>
+              <Text style={styles.orderText}>
+                Thời gian thanh toán:{" "}
+                {orderDetails?.payment_info?.created
+                  ? new Date(
+                      orderDetails.payment_info.created * 1000
+                    ).toLocaleString()
+                  : "N/A"}
+              </Text>
+              <Text style={styles.orderText}>
+                Bạn sẽ nhận được email thông báo!
+              </Text>
             </View>
-          )}
-          <Modal
-            animationType="slide"
-            transparent={true}
-            visible={isModalVisible}
-            onRequestClose={() => setIsModalVisible(false)}
-          >
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalContainer}>
-                <Text style={styles.modalTitle}>Xác nhận thanh toán</Text>
-                <Text style={styles.modalMessage}>
-                  Bạn có chắc chắn muốn thanh toán không?
-                </Text>
-                <FlatList
-                  data={cartItems.filter((item) =>
-                    selectedCourseIds.includes(item.courseId)
-                  )}
-                  keyExtractor={(item) => item.courseId}
-                  renderItem={({ item }) => (
-                    <View style={styles.modalCourseItem}>
-                      <Text style={styles.modalCourseName}>
-                        {item.courseName}
-                      </Text>
-                      <Text style={styles.modalCoursePrice}>
-                        {formatPrice(item.priceAtPurchase)} VNĐ
-                      </Text>
-                    </View>
-                  )}
-                  style={styles.modalCourseList}
-                />
-                <Text style={styles.modalTotal}>
-                  Tổng Cộng: {formatPrice(calculateTotalPrice())} VNĐ
-                </Text>
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity
-                    style={styles.modalCancelButton}
-                    onPress={() => setIsModalVisible(false)}
-                  >
-                    <Text style={styles.modalCancelText}>Hủy</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.modalConfirmButton}
-                    onPress={handlePayment}
-                  >
-                    <Text style={styles.modalConfirmText}>Xác nhận</Text>
-                  </TouchableOpacity>
-                </View>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => {
+                setOrderSuccess(false);
+                router.push("/(tabs)");
+              }}
+            >
+              <Text style={styles.backButtonText}>Quay lại Trang chủ</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={{ flex: 1 }}>
+            <View style={styles.header}>
+              <TouchableOpacity onPress={() => router.back()}>
+                <Ionicons name="arrow-back" size={24} color="#333" />
+              </TouchableOpacity>
+              <Text style={styles.headerText}>Giỏ Hàng</Text>
+              <View style={styles.cartCount}>
+                <Text style={styles.cartCountText}>{cartItems.length}</Text>
               </View>
             </View>
-          </Modal>
-        </View>
-      )}
+            <FlatList<CartItemType>
+              data={cartItems}
+              keyExtractor={(item) => item.courseId || Math.random().toString()}
+              renderItem={({ item }) => (
+                <View style={styles.cartItem}>
+                  <TouchableOpacity
+                    style={styles.checkbox}
+                    onPress={() => toggleSelection(item.courseId)}
+                  >
+                    <Ionicons
+                      name={
+                        selectedCourseIds.includes(item.courseId)
+                          ? "checkbox"
+                          : "square-outline"
+                      }
+                      size={24}
+                      color={
+                        selectedCourseIds.includes(item.courseId)
+                          ? "#009990"
+                          : "#808080"
+                      }
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.courseImageContainer}
+                    onPress={() => handleCourseDetails(item)}
+                  >
+                    <Image
+                      source={{
+                        uri:
+                          item.thumbnail?.url ||
+                          "https://via.placeholder.com/80",
+                      }}
+                      style={styles.courseImage}
+                    />
+                  </TouchableOpacity>
+                  <View style={styles.courseDetails}>
+                    <TouchableOpacity onPress={() => handleCourseDetails(item)}>
+                      <Text style={styles.courseName}>{item.courseName}</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.coursePrice}>
+                      {item.priceAtPurchase.toLocaleString("vi-VN")} VNĐ
+                    </Text>
+                    {enrolledCourses.includes(item.courseId) ? (
+                      <TouchableOpacity
+                        style={styles.accessButton}
+                        onPress={() => handleAccessCourse(item.courseId)}
+                      >
+                        <MaterialIcons
+                          name="play-circle-outline"
+                          size={20}
+                          color="#fff"
+                        />
+                        <Text style={styles.accessButtonText}>
+                          Truy cập khóa học
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.removeButton}
+                        onPress={() => handleRemoveItem(item.courseId)}
+                      >
+                        <MaterialIcons name="delete" size={20} color="#fff" />
+                        <Text style={styles.removeButtonText}>Xóa</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              )}
+              ListEmptyComponent={() => (
+                <View style={styles.emptyContainer}>
+                  <Ionicons
+                    name="cart-outline"
+                    size={80}
+                    color="#575757"
+                    style={styles.emptyIcon}
+                  />
+                  <Text style={styles.emptyText}>
+                    Giỏ Hàng Của Bạn Đang Trống!
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.shopButton}
+                    onPress={() => router.push("/(tabs)")}
+                  >
+                    <Text style={styles.shopButtonText}>Khám phá khóa học</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              }
+              initialNumToRender={5}
+              windowSize={10}
+              removeClippedSubviews={true}
+              getItemLayout={(data, index) => ({
+                length: 120,
+                offset: 120 * index,
+                index,
+              })}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            />
+            {cartItems.length > 0 && (
+              <View style={styles.footer}>
+                <Text style={styles.totalText}>
+                  Tổng Cộng: {formatPrice(totalPrice)} VNĐ
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.checkoutButton,
+                    {
+                      opacity: selectedCourseIds.length === 0 ? 0.5 : 1,
+                    },
+                  ]}
+                  onPress={handleShowModal}
+                  disabled={selectedCourseIds.length === 0 || isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.checkoutButtonText}>
+                      Thanh Toán ({selectedCourseIds.length})
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+            <Modal
+              animationType="slide"
+              transparent={true}
+              visible={isModalVisible}
+              onRequestClose={() => setIsModalVisible(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContainer}>
+                  <Text style={styles.modalTitle}>Xác nhận thanh toán</Text>
+                  <Text style={styles.modalMessage}>
+                    Bạn có chắc chắn muốn thanh toán không?
+                  </Text>
+                  <FlatList
+                    data={cartItems.filter((item) =>
+                      selectedCourseIds.includes(item.courseId)
+                    )}
+                    keyExtractor={(item) => item.courseId}
+                    renderItem={({ item }) => (
+                      <View style={styles.modalCourseItem}>
+                        <Text style={styles.modalCourseName}>
+                          {item.courseName}
+                        </Text>
+                        <Text style={styles.modalCoursePrice}>
+                          {formatPrice(item.priceAtPurchase)} VNĐ
+                        </Text>
+                      </View>
+                    )}
+                    style={styles.modalCourseList}
+                  />
+                  <Text style={styles.modalTotal}>
+                    Tổng Cộng: {formatPrice(totalPrice)} VNĐ
+                  </Text>
+                  <View style={styles.modalButtons}>
+                    <TouchableOpacity
+                      style={styles.modalCancelButton}
+                      onPress={() => setIsModalVisible(false)}
+                    >
+                      <Text style={styles.modalCancelText}>Hủy</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.modalConfirmButton}
+                      onPress={handlePayment}
+                    >
+                      <Text style={styles.modalConfirmText}>Xác nhận</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </Modal>
+          </View>
+        )}
+      </SafeAreaView>
     </LinearGradient>
   );
 }
@@ -713,7 +720,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 16,
+    paddingHorizontal: 16,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#E1E2E5",
@@ -722,11 +729,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    paddingTop: 40,
+    paddingBottom: 10,
   },
   headerText: {
-    fontSize: 24,
+    fontSize: 20,
     fontFamily: "Raleway_700Bold",
     color: "#333",
+    textAlign: "left",
   },
   cartCount: {
     backgroundColor: "#141517",
