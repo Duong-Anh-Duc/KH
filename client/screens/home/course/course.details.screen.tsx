@@ -1,3 +1,4 @@
+// frontend/app/(routes)/course-details.tsx
 import ReviewCard from "@/components/cards/review.card";
 import CourseLesson from "@/components/courses/course.lesson";
 import { useCart } from "@/context/CartContext";
@@ -20,8 +21,9 @@ import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, Modal } from "react-native";
 import { Toast } from "react-native-toast-notifications";
+import { Video, ResizeMode } from "expo-av"; // Thêm expo-av để phát video
 
 interface User {
   _id: string;
@@ -109,6 +111,7 @@ export default function CourseDetailScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const { addToCart, removeFromCart, cartItems, errorMessage, clearError } = useCart();
+  const [isDemoModalVisible, setIsDemoModalVisible] = useState(false); // Trạng thái để hiển thị modal video demo
 
   const isCourseInCart = cartItems.some((item) => item.courseId === courseId);
 
@@ -290,7 +293,8 @@ export default function CourseDetailScreen() {
         }
       );
 
-      router.replace("/(tabs)/favorites");
+      // Không điều hướng đến trang danh sách yêu thích (theo yêu cầu trước đó)
+      // router.replace("/(tabs)/favorites");
     } catch (error: any) {
       console.error("Lỗi khi thêm/xóa khóa học yêu thích:", error);
       Toast.show(
@@ -331,10 +335,7 @@ export default function CourseDetailScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={["#009990", "#F6F7F9"]}
-      style={styles.container}
-    >
+    <LinearGradient colors={["#009990", "#F6F7F9"]} style={styles.container}>
       {errorMessage && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{errorMessage}</Text>
@@ -366,6 +367,15 @@ export default function CourseDetailScreen() {
             source={{ uri: courseData?.thumbnail.url || "https://via.placeholder.com/230" }}
             style={styles.thumbnail}
           />
+          {courseData?.demoUrl && (
+            <TouchableOpacity
+              style={styles.demoButton}
+              onPress={() => setIsDemoModalVisible(true)}
+            >
+              <Ionicons name="play-circle-outline" size={24} color="#fff" />
+              <Text style={styles.demoButtonText}>Xem demo</Text>
+            </TouchableOpacity>
+          )}
         </View>
         <Text style={styles.courseTitle}>
           {courseData?.name ?? "Khóa học không xác định"}
@@ -413,17 +423,11 @@ export default function CourseDetailScreen() {
           {["Về Khóa Học", "Bài Giảng", "Đánh Giá"].map((tab) => (
             <TouchableOpacity
               key={tab}
-              style={[
-                styles.tabButton,
-                activeButton === tab && styles.activeTabButton,
-              ]}
+              style={[styles.tabButton, activeButton === tab && styles.activeTabButton]}
               onPress={() => setActiveButton(tab)}
             >
               <Text
-                style={[
-                  styles.tabButtonText,
-                  activeButton === tab && styles.activeTabButtonText,
-                ]}
+                style={[styles.tabButtonText, activeButton === tab && styles.activeTabButtonText]}
               >
                 {tab}
               </Text>
@@ -472,18 +476,12 @@ export default function CourseDetailScreen() {
       </ScrollView>
       <View style={styles.footer}>
         {checkPurchased ? (
-          <TouchableOpacity
-            style={styles.accessButton}
-            onPress={handleAccessCourse}
-          >
+          <TouchableOpacity style={styles.accessButton} onPress={handleAccessCourse}>
             <Text style={styles.accessButtonText}>Truy cập khóa học</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[
-              styles.cartButton,
-              isCourseInCart && styles.removeCartButton,
-            ]}
+            style={[styles.cartButton, isCourseInCart && styles.removeCartButton]}
             onPress={isCourseInCart ? handleRemoveFromCart : handleAddToCart}
           >
             <Text style={styles.cartButtonText}>
@@ -492,6 +490,33 @@ export default function CourseDetailScreen() {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Modal để hiển thị video demo */}
+      <Modal
+        visible={isDemoModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsDemoModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Video Demo</Text>
+            <Video
+              source={{ uri: courseData?.demoUrl }}
+              style={styles.demoVideo}
+              useNativeControls
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay={false}
+            />
+            <TouchableOpacity
+              style={styles.closeModalButton}
+              onPress={() => setIsDemoModalVisible(false)}
+            >
+              <Text style={styles.closeModalButtonText}>Đóng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -574,6 +599,29 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
+  },
+  demoButton: {
+    position: "absolute",
+    zIndex: 14,
+    bottom: 10,
+    left: 10,
+    backgroundColor: "rgba(0, 153, 144, 0.9)", // Màu nền của nút "Xem demo"
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  demoButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontFamily: "Nunito_600SemiBold",
+    marginLeft: 5,
   },
   courseTitle: {
     marginHorizontal: 15,
@@ -791,5 +839,46 @@ const styles = StyleSheet.create({
   },
   clearErrorButton: {
     padding: 5,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContainer: {
+    width: "90%",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 20,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: "Raleway_700Bold",
+    color: "#333",
+    marginBottom: 15,
+  },
+  demoVideo: {
+    width: "100%",
+    height: 200,
+    borderRadius: 12,
+    marginBottom: 15,
+  },
+  closeModalButton: {
+    backgroundColor: "#009990",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  closeModalButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontFamily: "Nunito_600SemiBold",
   },
 });
