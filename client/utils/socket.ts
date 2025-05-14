@@ -1,17 +1,17 @@
 // frontend/utils/socket.ts
 import { io } from "socket.io-client";
-import { SERVER_URI } from "./uri";
 
-const socket = io(SERVER_URI, {
+const socket = io("http://192.168.1.7:8001", {
   autoConnect: false,
   transports: ["websocket"],
-  query: {}, // Sẽ cập nhật userId sau khi đăng nhập
+  query: {},
 });
 
 export const connectSocket = async (accessToken: string, refreshToken: string, userId?: string) => {
   socket.auth = { accessToken, refreshToken };
   if (userId) {
-    socket.io.opts.query = { userId }; // Gửi userId để backend nhận diện
+    socket.io.opts.query = { userId };
+    console.log("Connecting socket with userId:", userId); // Thêm log để kiểm tra
   }
   socket.connect();
 };
@@ -21,3 +21,4 @@ export const disconnectSocket = () => {
 };
 
 export default socket;
+

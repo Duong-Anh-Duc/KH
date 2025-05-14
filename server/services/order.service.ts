@@ -1,3 +1,4 @@
+// order.service.ts
 import ejs from "ejs";
 import path from "path";
 import CartModel from "../models/cart.model";
@@ -5,10 +6,11 @@ import CourseModel from "../models/course.model";
 import NotificationModel from "../models/notification.Model";
 import OrderModel from "../models/order.Model";
 import userModel from "../models/user.model";
+import { io } from "../server"; // Import io từ server
 import ErrorHandler from "../utils/ErrorHandler";
 import { redis } from "../utils/redis";
 import sendMail from "../utils/sendMail";
-import { createInvoiceFromOrderService } from "./invoice.service"; // Import service tạo hóa đơn
+import { createInvoiceFromOrderService } from "./invoice.service";
 
 interface CreateMobileOrderData {
   userId: string;
@@ -153,6 +155,21 @@ export const createMobileOrderService = async (data: CreateMobileOrderData) => {
   });
   console.log("Thông báo đã được tạo.");
 
+  // Gửi thông báo qua socket.io cho học viên
+  io.to(userId).emit("orderSuccess", {
+    message: `Bạn đã mua thành công ${coursesInCart.length} khóa học!`,
+    order,
+  });
+
+  // Gửi thông báo qua socket.io cho quản trị viên
+  const admins = await userModel.find({ role: "admin" });
+  admins.forEach((admin) => {
+    io.to(admin._id.toString()).emit("newOrder", {
+      message: `Đơn hàng mới từ ${user.name}: ${coursesInCart.map((c: any) => c.courseName).join(", ")}`,
+      order,
+    });
+  });
+
   console.log("Cập nhật số lượng người mua cho các khóa học...");
   await Promise.all(
     coursesInCart.map(async (course) => {
@@ -169,7 +186,7 @@ export const createMobileOrderService = async (data: CreateMobileOrderData) => {
   const mailData = {
     order: {
       _id: order._id.toString().slice(0, 6),
-      invoiceId: invoice.invoiceId, // Thêm mã hóa đơn vào email
+      invoiceId: invoice.invoiceId,
       courses: coursesInCart.map((course) => ({
         name: course.courseName,
         price: course.priceAtPurchase,
