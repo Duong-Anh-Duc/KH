@@ -200,7 +200,7 @@ const CreateCourseScreen = () => {
 
       await api.post("/create-course", formData, {
         headers: { "Content-Type": "multipart/form-data" },
-        timeout: 1000000,
+        timeout: 10000000,
       });
       Toast.show("Tạo khóa học thành công!", { type: "success" });
     } catch (error: any) {

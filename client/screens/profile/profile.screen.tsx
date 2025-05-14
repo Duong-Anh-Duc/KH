@@ -1,5 +1,4 @@
-// frontend/app/(routes)/profile/index.tsx
-import { useUser } from "@/context/UserContext"; // Cập nhật import
+import { useUser } from "@/context/UserContext";
 import {
   Nunito_400Regular,
   Nunito_600SemiBold,
@@ -23,7 +22,7 @@ import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { ToastProvider } from "react-native-toast-notifications";
 
 export default function ProfileScreen() {
-  const { user, loading, fetchUser } = useUser(); // Sử dụng UserContext
+  const { user, loading, fetchUser, setUser } = useUser(); // Thêm setUser từ UserContext
 
   let [fontsLoaded, fontError] = useFonts({
     Raleway_600SemiBold,
@@ -40,6 +39,7 @@ export default function ProfileScreen() {
   const logoutHandler = async () => {
     await AsyncStorage.removeItem("access_token");
     await AsyncStorage.removeItem("refresh_token");
+    setUser(null); // Cập nhật user thành null ngay lập tức
     router.push("/(routes)/login");
   };
 

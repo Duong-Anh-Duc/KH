@@ -1,25 +1,23 @@
-// frontend/app/(routes)/course-access/index.tsx
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  TextInput,
-  RefreshControl,
-} from "react-native";
-import React, { useEffect, useState, useCallback } from "react";
-import { router, useLocalSearchParams } from "expo-router";
-import axios from "axios";
-import { SERVER_URI } from "@/utils/uri";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { FontAwesome } from "@expo/vector-icons";
-import useUser from "@/hooks/auth/useUser";
-import { Toast } from "react-native-toast-notifications";
 import ReviewCard from "@/components/cards/review.card";
-import { CoursesType, CourseDataType, ReviewType } from "@/types/courses";
+import useUser from "@/hooks/auth/useUser";
+import { CourseDataType, CoursesType, ReviewType } from "@/types/courses";
+import { SERVER_URI } from "@/utils/uri";
+import { FontAwesome } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
+import {
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { widthPercentageToDP } from "react-native-responsive-screen";
+import { Toast } from "react-native-toast-notifications";
 
 export default function CourseAccessScreen() {
   const [isLoading, setIsLoading] = useState(true);
@@ -234,10 +232,8 @@ export default function CourseAccessScreen() {
 
   if (isLoading || !courseData || !courseContentData) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text style={{ fontSize: 18, fontFamily: "Nunito_700Bold" }}>
-          Đang tải...
-        </Text>
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Đang tải...</Text>
       </View>
     );
   }
@@ -337,7 +333,10 @@ export default function CourseAccessScreen() {
           {activeButton === "Đánh Giá" && (
             <View style={styles.tabContent}>
               {!reviewAvailable && (
-                <View>
+                <View style={styles.reviewFormContainer}>
+                  <Text style={styles.reviewFormTitle}>
+                    Viết đánh giá của bạn
+                  </Text>
                   <View style={styles.ratingContainer}>
                     <Text style={styles.ratingLabel}>Đánh giá:</Text>
                     <View style={styles.starsContainer}>{renderStars()}</View>
@@ -345,9 +344,10 @@ export default function CourseAccessScreen() {
                   <TextInput
                     value={review}
                     onChangeText={setReview}
-                    placeholder="Viết một đánh giá..."
+                    placeholder="Nhập nhận xét của bạn..."
                     style={styles.textInput}
                     multiline={true}
+                    placeholderTextColor="#999"
                   />
                   <View style={styles.submitButtonContainer}>
                     <TouchableOpacity
@@ -358,7 +358,7 @@ export default function CourseAccessScreen() {
                       disabled={review === ""}
                       onPress={() => handleReviewSubmit()}
                     >
-                      <Text style={styles.buttonText}>Gửi</Text>
+                      <Text style={styles.buttonText}>Gửi đánh giá</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -382,45 +382,50 @@ export default function CourseAccessScreen() {
 }
 
 const styles = StyleSheet.create({
-  button: {
-    width: widthPercentageToDP("35%"),
-    height: 40,
-    backgroundColor: "#2467EC",
-    borderRadius: 40,
-    alignItems: "center",
+  loadingContainer: {
+    flex: 1,
     justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F6F7F9",
   },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    color: "#fff",
+  loadingText: {
     fontSize: 18,
-    fontWeight: "600",
+    fontFamily: "Nunito_700Bold",
+    color: "#333",
   },
   lessonListContainer: {
-    marginVertical: 15,
-    marginHorizontal: 10,
+    marginVertical: 20,
+    marginHorizontal: 15,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 15,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   lessonListTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontFamily: "Raleway_700Bold",
     color: "#333",
-    marginBottom: 10,
+    marginBottom: 15,
   },
   lessonItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 15,
     borderRadius: 8,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: "#F8F9FB",
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#E1E2E5",
   },
   lessonNumber: {
     fontSize: 16,
     fontFamily: "Nunito_600SemiBold",
-    color: "#333",
+    color: "#2467EC",
     marginRight: 10,
   },
   lessonTitle: {
@@ -430,23 +435,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tabContainer: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
     backgroundColor: "#E1E9F8",
     borderRadius: 25,
-    marginHorizontal: 10,
-    marginBottom: 15,
+    marginHorizontal: 15,
+    marginBottom: 20,
   },
   tabButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 25,
     borderRadius: 25,
+    marginHorizontal: 5,
   },
   activeTabButton: {
     backgroundColor: "#2467EC",
   },
   tabButtonText: {
-    color: "#000",
+    color: "#333",
     fontFamily: "Nunito_600SemiBold",
     fontSize: 16,
   },
@@ -454,61 +460,121 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   tabContent: {
-    marginHorizontal: 16,
-    marginBottom: 25,
+    marginHorizontal: 15,
+    marginBottom: 30,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 20,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: "Raleway_700Bold",
     color: "#333",
-    marginBottom: 10,
+    marginBottom: 15,
   },
   description: {
     color: "#525258",
     fontSize: 16,
     textAlign: "justify",
     fontFamily: "Nunito_500Medium",
+    lineHeight: 24,
   },
   expandButton: {
-    marginTop: 5,
+    marginTop: 10,
   },
   expandButtonText: {
     color: "#2467EC",
-    fontSize: 14,
+    fontSize: 16,
+    fontFamily: "Nunito_600SemiBold",
+  },
+  reviewFormContainer: {
+    backgroundColor: "#F8F9FB",
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#2467EC",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  reviewFormTitle: {
+    fontSize: 18,
+    fontFamily: "Raleway_700Bold",
+    color: "#2467EC",
+    marginBottom: 15,
+    textAlign: "center",
+  },
+  ratingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+    justifyContent: "center",
+  },
+  ratingLabel: {
+    fontSize: 18,
+    fontFamily: "Nunito_600SemiBold",
+    color: "#333",
+    marginRight: 10,
+  },
+  starsContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
   },
   textInput: {
-    flex: 1,
     textAlignVertical: "top",
-    justifyContent: "flex-start",
-    backgroundColor: "white",
+    backgroundColor: "#fff",
     borderRadius: 10,
-    height: 100,
-    padding: 10,
-    marginBottom: 15,
+    height: 120,
+    padding: 15,
+    marginBottom: 20,
     borderWidth: 1,
     borderColor: "#E1E2E5",
+    fontSize: 16,
+    fontFamily: "Nunito_400Regular",
+    color: "#333",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   submitButtonContainer: {
     flexDirection: "row",
-    justifyContent: "flex-end",
-    marginBottom: 20,
+    justifyContent: "center",
+  },
+  button: {
+    width: widthPercentageToDP("40%"),
+    height: 45,
+    backgroundColor: "#2467EC",
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontFamily: "Nunito_700Bold",
   },
   emptyText: {
     fontSize: 16,
     color: "#575757",
     textAlign: "center",
     marginVertical: 20,
-  },
-  ratingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  ratingLabel: {
-    fontSize: 18,
-    paddingRight: 5,
-  },
-  starsContainer: {
-    flexDirection: "row",
+    fontFamily: "Nunito_500Medium",
   },
 });

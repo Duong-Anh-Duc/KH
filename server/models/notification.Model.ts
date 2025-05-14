@@ -1,28 +1,35 @@
-import mongoose, {Document,Model,Schema}  from "mongoose";
+// backend/models/notification.Model.ts
+import mongoose, { Document, Model, Schema } from "mongoose";
 
-export interface INotification extends Document{
-   title: string;
-   message: string;
-   status: string;
-   userId: string;
+export interface INotification extends Document {
+  title: string;
+  message: string;
+  status: string;
+  userId: string; // Đảm bảo có trường userId
 }
 
-const notificationSchema = new Schema<INotification>({
-    title:{
-        type: String,
-        required: true
+const notificationSchema = new Schema<INotification>(
+  {
+    title: {
+      type: String,
+      required: true,
     },
-    message:{
-        type:String,
-        required: true,
+    message: {
+      type: String,
+      required: true,
     },
-    status:{
-        type: String,
-        required: true,
-        default: "unread"
-    }
-},{timestamps: true});
+    status: {
+      type: String,
+      required: true,
+      default: "unread",
+    },
+    userId: {
+      type: String,
+      required: true,
+    },
+  },
+  { timestamps: true }
+);
 
-
-const NotificationModel: Model<INotification> = mongoose.model('Notification',notificationSchema);
+const NotificationModel: Model<INotification> = mongoose.model("Notification", notificationSchema);
 export default NotificationModel;

@@ -3,7 +3,9 @@ import ejs from "ejs";
 import jwt, { JwtPayload, Secret } from "jsonwebtoken";
 import path from "path";
 import CourseModel from "../models/course.model";
+import NotificationModel from "../models/notification.Model";
 import userModel, { IUser } from "../models/user.model";
+import { io } from "../server";
 import ErrorHandler from "../utils/ErrorHandler";
 import { generateTokens } from "../utils/jwt";
 import { redis } from "../utils/redis";
@@ -108,6 +110,11 @@ export const loginUserService = async (loginData: { email: string; password: str
     throw new ErrorHandler("Email hoặc mật khẩu không hợp lệ", 400);
   }
 
+  // Kiểm tra trạng thái isBanned
+  if (user.isBanned) {
+    throw new ErrorHandler("Bạn đã bị cấm vui lòng liên hệ admin để mở khoá!", 403);
+  }
+
   const isPasswordMatch = await user.comparePassword(password);
   if (!isPasswordMatch) {
     await redis.set(loginAttemptsKey, (loginAttempts + 1).toString(), "EX", 1800);
@@ -158,8 +165,7 @@ export const getUserInfoService = async (userId: string) => {
   }
   return JSON.parse(userJson);
 };
-
-
+// backend/services/user.service.ts
 export const updateUserInfoService = async (userId: string, updateData: { name?: string; email?: string }) => {
   const { name } = updateData;
 
@@ -174,6 +180,20 @@ export const updateUserInfoService = async (userId: string, updateData: { name?:
 
   await user.save();
   await redis.set(userId, JSON.stringify(user));
+
+  // Lưu thông báo vào database
+  await NotificationModel.create({
+    userId: userId,
+    title: "Cập Nhật Tài Khoản",
+    message: "Thông tin tài khoản của bạn đã được cập nhật thành công!",
+    status: "unread",
+  });
+
+  // Gửi thông báo qua socket.io
+  io.to(userId).emit("userUpdated", {
+    message: "Thông tin tài khoản của bạn đã được cập nhật thành công!",
+    user,
+  });
 
   return user;
 };
@@ -199,8 +219,73 @@ export const updatePasswordService = async (userId: string, passwordData: { oldP
   await user.save();
   await redis.set(userId, JSON.stringify(user));
 
+  // Lưu thông báo vào database
+  await NotificationModel.create({
+    userId: userId,
+    title: "Cập Nhật Mật Khẩu",
+    message: "Mật khẩu của bạn đã được cập nhật thành công!",
+    status: "unread",
+  });
+
+  // Gửi thông báo qua socket.io
+  io.to(userId).emit("userUpdated", {
+    message: "Mật khẩu của bạn đã được cập nhật thành công!",
+    user,
+  });
+
   return user;
 };
+
+export const updateProfilePictureService = async (userId: string, avatar: string) => {
+  const user = await userModel.findById(userId).select("+password");
+  if (!user) {
+    throw new ErrorHandler("Người dùng không tồn tại", 404);
+  }
+
+  if (avatar) {
+    if (user.avatar?.public_id) {
+      await cloudinary.v2.uploader.destroy(user.avatar.public_id);
+      const myCloud = await cloudinary.v2.uploader.upload(avatar, {
+        folder: "avatars",
+        width: 150,
+      });
+      user.avatar = {
+        public_id: myCloud.public_id,
+        url: myCloud.secure_url,
+      };
+    } else {
+      const myCloud = await cloudinary.v2.uploader.upload(avatar, {
+        folder: "avatars",
+        width: 150,
+      });
+      user.avatar = {
+        public_id: myCloud.public_id,
+        url: myCloud.secure_url,
+      };
+    }
+  }
+
+  await user.save();
+  await redis.set(userId, JSON.stringify(user));
+
+  // Lưu thông báo vào database
+  await NotificationModel.create({
+    userId: userId,
+    title: "Cập Nhật Ảnh Đại Diện",
+    message: "Ảnh đại diện của bạn đã được cập nhật thành công!",
+    status: "unread",
+  });
+
+  // Gửi thông báo qua socket.io
+  io.to(userId).emit("userUpdated", {
+    message: "Ảnh đại diện của bạn đã được cập nhật thành công!",
+    user,
+  });
+
+  return user;
+};
+
+
 
 export const forgotPasswordService = async (email: string) => {
   if (!email) {
@@ -275,41 +360,6 @@ export const resetPasswordService = async (resetData: { resetToken: string; rese
   await redis.del(`reset:${decoded.email}`);
 
   return { message: "Đặt lại mật khẩu thành công. Vui lòng đăng nhập bằng mật khẩu mới." };
-};
-
-export const updateProfilePictureService = async (userId: string, avatar: string) => {
-  const user = await userModel.findById(userId).select("+password");
-  if (!user) {
-    throw new ErrorHandler("Người dùng không tồn tại", 404);
-  }
-
-  if (avatar) {
-    if (user.avatar?.public_id) {
-      await cloudinary.v2.uploader.destroy(user.avatar.public_id);
-      const myCloud = await cloudinary.v2.uploader.upload(avatar, {
-        folder: "avatars",
-        width: 150,
-      });
-      user.avatar = {
-        public_id: myCloud.public_id,
-        url: myCloud.secure_url,
-      };
-    } else {
-      const myCloud = await cloudinary.v2.uploader.upload(avatar, {
-        folder: "avatars",
-        width: 150,
-      });
-      user.avatar = {
-        public_id: myCloud.public_id,
-        url: myCloud.secure_url,
-      };
-    }
-  }
-
-  await user.save();
-  await redis.set(userId, JSON.stringify(user));
-
-  return user;
 };
 
 export const getAllUsersService = async () => {

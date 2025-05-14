@@ -172,7 +172,7 @@ const CreateLessonScreen = () => {
 
       await api.post("/add-lesson", formData, {
         headers: { "Content-Type": "multipart/form-data" },
-        timeout: 1000000,
+        timeout: 100000,
       });
       Toast.show("Thêm bài học thành công!", { type: "success" });
     } catch (error: any) {

@@ -7,12 +7,12 @@ import axios from "axios";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { widthPercentageToDP } from "react-native-responsive-screen";
 import { Toast } from "react-native-toast-notifications";
@@ -132,23 +132,20 @@ export default function LessonScreen() {
 
   if (isLoading || !courseData || !lessonData) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text style={{ fontSize: 18, fontFamily: "Nunito_700Bold" }}>
-          Đang tải...
-        </Text>
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Đang tải...</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={{ flex: 1, padding: 10 }}>
+    <ScrollView style={styles.container}>
       {/* Video */}
-      <View
-        style={{ width: "100%", aspectRatio: 16 / 9, borderRadius: 10, marginBottom: 15 }}
-      >
+      <View style={styles.videoContainer}>
         <WebView
           source={{ uri: lessonData.videoUrl || "" }}
           allowsFullscreenVideo={true}
+          style={styles.webView}
           onError={() => {
             Toast.show("Không thể tải video bài học", { type: "danger" });
           }}
@@ -163,21 +160,25 @@ export default function LessonScreen() {
       {/* Phần Hỏi Đáp */}
       <View style={styles.tabContent}>
         <Text style={styles.sectionTitle}>Hỏi Đáp</Text>
-        <TextInput
-          value={question}
-          onChangeText={setQuestion}
-          placeholder="Đặt một câu hỏi..."
-          style={styles.textInput}
-          multiline={true}
-        />
-        <View style={styles.submitButtonContainer}>
-          <TouchableOpacity
-            style={[styles.button, question === "" && styles.disabledButton]}
-            disabled={question === ""}
-            onPress={() => handleQuestionSubmit()}
-          >
-            <Text style={styles.buttonText}>Gửi</Text>
-          </TouchableOpacity>
+        <View style={styles.questionFormContainer}>
+          <Text style={styles.questionFormTitle}>Đặt câu hỏi của bạn</Text>
+          <TextInput
+            value={question}
+            onChangeText={setQuestion}
+            placeholder="Nhập câu hỏi của bạn..."
+            style={styles.textInput}
+            multiline={true}
+            placeholderTextColor="#999"
+          />
+          <View style={styles.submitButtonContainer}>
+            <TouchableOpacity
+              style={[styles.button, question === "" && styles.disabledButton]}
+              disabled={question === ""}
+              onPress={() => handleQuestionSubmit()}
+            >
+              <Text style={styles.buttonText}>Gửi câu hỏi</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         {lessonData.questions?.length > 0 ? (
           lessonData.questions
@@ -201,59 +202,129 @@ export default function LessonScreen() {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F6F7F9",
+    padding: 15,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F6F7F9",
+  },
+  loadingText: {
+    fontSize: 18,
+    fontFamily: "Nunito_700Bold",
+    color: "#333",
+  },
+  videoContainer: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+    borderRadius: 12,
+    marginBottom: 20,
+    overflow: "hidden",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  webView: {
+    flex: 1,
+  },
+  lessonTitle: {
+    fontSize: 22,
+    fontFamily: "Raleway_700Bold",
+    color: "#333",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  tabContent: {
+    marginBottom: 30,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 20,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontFamily: "Raleway_700Bold",
+    color: "#333",
+    marginBottom: 15,
+    textAlign: "center",
+  },
+  questionFormContainer: {
+    backgroundColor: "#F8F9FB",
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#2467EC",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  questionFormTitle: {
+    fontSize: 18,
+    fontFamily: "Raleway_700Bold",
+    color: "#2467EC",
+    marginBottom: 15,
+    textAlign: "center",
+  },
+  textInput: {
+    textAlignVertical: "top",
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    height: 120,
+    padding: 15,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#E1E2E5",
+    fontSize: 16,
+    fontFamily: "Nunito_400Regular",
+    color: "#333",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  submitButtonContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+  },
   button: {
-    width: widthPercentageToDP("35%"),
-    height: 40,
+    width: widthPercentageToDP("40%"),
+    height: 45,
     backgroundColor: "#2467EC",
-    borderRadius: 40,
+    borderRadius: 25,
     alignItems: "center",
     justifyContent: "center",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
   },
   disabledButton: {
     opacity: 0.5,
   },
   buttonText: {
     color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  lessonTitle: {
-    fontSize: 20,
-    fontFamily: "Raleway_700Bold",
-    color: "#333",
-    marginBottom: 15,
-  },
-  tabContent: {
-    marginHorizontal: 16,
-    marginBottom: 25,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: "Raleway_700Bold",
-    color: "#333",
-    marginBottom: 10,
-  },
-  textInput: {
-    flex: 1,
-    textAlignVertical: "top",
-    justifyContent: "flex-start",
-    backgroundColor: "white",
-    borderRadius: 10,
-    height: 100,
-    padding: 10,
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: "#E1E2E5",
-  },
-  submitButtonContainer: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    marginBottom: 20,
+    fontSize: 16,
+    fontFamily: "Nunito_700Bold",
   },
   emptyText: {
     fontSize: 16,
     color: "#575757",
     textAlign: "center",
     marginVertical: 20,
+    fontFamily: "Nunito_500Medium",
   },
 });

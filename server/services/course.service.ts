@@ -18,6 +18,7 @@ interface CloudinaryResource {
   url: string;
 }
 
+// backend/services/course.service.ts
 export const editCourseService = async (courseId: string, data: any, files: any) => {
   const courseData = await CourseModel.findById(courseId) as any;
   if (!courseData) {
@@ -61,20 +62,32 @@ export const editCourseService = async (courseId: string, data: any, files: any)
 
   await redis.set(courseId, JSON.stringify(course), "EX", 604800);
 
-  io.to("allUsers").emit("courseUpdated", {
-    message: `Khóa học ${course?.name} đã được cập nhật!`,
-    course: {
-      _id: course?._id,
-      name: course?.name,
-      thumbnail: course?.thumbnail,
-      price: course?.price,
-      estimatedPrice: course?.estimatedPrice,
-    },
-  });
+  // Tìm tất cả học viên đã đăng ký khóa học này
+  const enrolledUsers = await userModel.find({ "courses.courseId": courseId });
+  await Promise.all(
+    enrolledUsers.map(async (user) => {
+      await NotificationModel.create({
+        userId: user._id.toString(),
+        title: "Khóa Học Được Cập Nhật",
+        message: `Khóa học "${course?.name}" đã được cập nhật!`,
+        status: "unread",
+      });
+
+      io.to(user._id.toString()).emit("courseUpdated", {
+        message: `Khóa học "${course?.name}" đã được cập nhật!`,
+        course: {
+          _id: course?._id,
+          name: course?.name,
+          thumbnail: course?.thumbnail,
+          price: course?.price,
+          estimatedPrice: course?.estimatedPrice,
+        },
+      });
+    })
+  );
 
   return course;
 };
-
 export const getSingleCourseService = async (courseId: string) => {
   const isCacheExist = await redis.get(courseId);
   if (isCacheExist) {
@@ -200,11 +213,33 @@ export const addAnswerService = async (
 
   await course.save();
 
+  // Gửi thông báo qua socket.io cho học viên đã đặt câu hỏi
+  io.to(question.user._id.toString()).emit("newQuestionReply", {
+    message: `Bạn có phản hồi mới cho câu hỏi trong bài học "${courseContent.title}" của khóa học "${course.name}"!`,
+    courseId,
+    contentId,
+    questionId,
+  });
+
+  // Gửi thông báo qua socket.io cho quản trị viên (nếu người trả lời không phải admin)
+  if (user.role !== "admin") {
+    const admins = await userModel.find({ role: "admin" });
+    admins.forEach((admin) => {
+      io.to(admin._id.toString()).emit("newQuestionReply", {
+        message: `Câu hỏi trong bài học "${courseContent.title}" của khóa học "${course.name}" đã được trả lời bởi ${user.name}!`,
+        courseId,
+        contentId,
+        questionId,
+      });
+    });
+  }
+
   if (user._id === question.user._id) {
     await NotificationModel.create({
-      user: user._id,
-      title: "Phản hồi câu hỏi mới đã được nhận",
+      userId: user._id.toString(),
+      title: "Phản Hồi Câu Hỏi Mới",
       message: `Bạn có một phản hồi mới trong ${courseContent.title}`,
+      status: "unread",
     });
   } else {
     const data = {
@@ -396,7 +431,6 @@ export const getCategoriesService = async () => {
   );
   return categories;
 };
-
 export const createCourseService = async (data: any, files: any) => {
   const {
     name,
@@ -414,7 +448,8 @@ export const createCourseService = async (data: any, files: any) => {
   if (!name || !description || !categories || !price || !tags || !level) {
     throw new ErrorHandler("Vui lòng cung cấp đầy đủ các trường bắt buộc", 400);
   }
-
+  console.log(data);
+  console.log(files);
   let thumbnail: CloudinaryResource = { public_id: "", url: "" };
   if (files && files.thumbnail) {
     const thumbnailFile = files.thumbnail[0];
@@ -474,8 +509,22 @@ export const createCourseService = async (data: any, files: any) => {
 
   await redis.set(course._id.toString(), JSON.stringify(course), "EX", 604800);
 
+  // Lưu thông báo cho tất cả người dùng
+  const users = await userModel.find();
+  await Promise.all(
+    users.map(async (user) => {
+      await NotificationModel.create({
+        userId: user._id.toString(),
+        title: "Khóa Học Mới",
+        message: `Khóa học mới: ${course.name} vừa được thêm! Khám phá ngay.`,
+        status: "unread",
+      });
+    })
+  );
+
+  // Gửi thông báo qua socket.io cho tất cả người dùng
   io.to("allUsers").emit("newCourse", {
-    message: `Khóa học mới: ${course.name} đã được thêm!`,
+    message: `Khóa học mới: ${course.name} vừa được thêm! Khám phá ngay.`,
     course: {
       _id: course._id,
       name: course.name,
@@ -498,7 +547,8 @@ export const addLessonToCourseService = async (data: any, files: any) => {
   if (!course) {
     throw new ErrorHandler("Không tìm thấy khóa học", 404);
   }
-
+  console.log(data);
+  console.log(files);
   let videoUrl = "";
   if (files && files.videoFile) {
     const videoFile = files.videoFile[0];
@@ -542,9 +592,27 @@ export const addLessonToCourseService = async (data: any, files: any) => {
 
   await redis.set(course._id.toString(), JSON.stringify(course), "EX", 604800);
 
+  // Tìm tất cả học viên đã đăng ký khóa học này
+  const enrolledUsers = await userModel.find({ "courses.courseId": courseId });
+  await Promise.all(
+    enrolledUsers.map(async (user) => {
+      await NotificationModel.create({
+        userId: user._id.toString(),
+        title: "Bài Học Mới",
+        message: `Bài học mới "${title}" đã được thêm vào khóa học "${course.name}"!`,
+        status: "unread",
+      });
+
+      io.to(user._id.toString()).emit("newLesson", {
+        message: `Bài học mới "${title}" đã được thêm vào khóa học "${course.name}"!`,
+        courseId,
+        lesson: newCourseData,
+      });
+    })
+  );
+
   return course;
 };
-
 export const editLessonService = async (data: any, files: any) => {
   const { courseId, lessonId, title, description, videoSection, videoLength, videoPlayer, links, suggestion, questions } = data;
 
