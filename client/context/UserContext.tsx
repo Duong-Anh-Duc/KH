@@ -31,6 +31,8 @@ interface INotification {
   message: string;
   status: string;
   createdAt: string;
+  courseId?: string;
+  price?: number;
 }
 
 interface UserContextType {
@@ -38,7 +40,14 @@ interface UserContextType {
   loading: boolean;
   setUser: React.Dispatch<React.SetStateAction<IUser | null>>;
   fetchUser: () => Promise<void>;
-  notifications: Array<{ id: string; message: string; type: string }>;
+  notifications: Array<{
+    id: string;
+    message: string;
+    type: string;
+    status: string;
+    courseId?: string;
+    price?: number;
+  }>;
   clearNotifications: () => void;
 }
 
@@ -52,7 +61,14 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [user, setUser] = useState<IUser | null>(null);
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState<
-    Array<{ id: string; message: string; type: string }>
+    Array<{
+      id: string;
+      message: string;
+      type: string;
+      status: string;
+      courseId?: string;
+      price?: number;
+    }>
   >([]);
 
   const fetchUser = async () => {
@@ -156,6 +172,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           id: notification._id,
           message: notification.message,
           type: notification.status,
+          status: notification.status,
+          courseId: notification.courseId,
+          price: notification.price,
         }));
 
         setNotifications(formattedNotifications);
@@ -176,7 +195,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   const addNotification = (message: string, type: string) => {
     const id = Math.random().toString(36).substr(2, 9);
-    setNotifications((prev) => [...prev, { id, message, type }]);
+    setNotifications((prev) => [...prev, { id, message, type, status: "new" }]);
   };
 
   const clearNotifications = () => {

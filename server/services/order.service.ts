@@ -171,12 +171,38 @@ export const createMobileOrderService = async (data: CreateMobileOrderData) => {
 
   // Gửi thông báo qua socket.io cho quản trị viên
   const admins = await userModel.find({ role: "admin" });
-  admins.forEach((admin) => {
+  admins.forEach(async (admin) => {
+    // Tạo thông báo trong database cho admin
+    const notification = await NotificationModel.create({
+      userId: admin._id.toString(),
+      title: "Đơn Hàng Mới",
+      message: `${
+        user.name
+      } đã mua khóa học với tổng giá ${totalPrice.toLocaleString("vi-VN")}đ`,
+      status: "unread",
+      type: "order",
+      order: {
+        _id: order._id,
+        userName: user.name,
+        courses: coursesInCart,
+        totalPrice: totalPrice,
+        createdAt: order.createdAt,
+      },
+    });
+
+    // Gửi thông báo qua socket
     io.to(admin._id.toString()).emit("newOrder", {
-      message: `Đơn hàng mới từ ${user.name}: ${coursesInCart
-        .map((c: any) => c.courseName)
-        .join(", ")}`,
-      order,
+      message: `Đơn hàng mới từ ${user.name}`,
+      order: {
+        _id: order._id,
+        userName: user.name,
+        courses: coursesInCart,
+        totalPrice: totalPrice,
+        createdAt: order.createdAt,
+      },
+      _id: notification._id,
+      type: "order",
+      status: "unread",
     });
   });
 

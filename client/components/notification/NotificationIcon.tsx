@@ -1,8 +1,11 @@
 // frontend/components/notification/NotificationIcon.tsx
 import { useUser } from "@/context/UserContext";
+import { SERVER_URI } from "@/utils/uri";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   FlatList,
   Modal,
@@ -10,6 +13,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Animated,
 } from "react-native";
 
 interface NotificationItem {
@@ -18,6 +22,7 @@ interface NotificationItem {
   type: string;
   courseId?: string;
   price?: number;
+  status: "read" | "unread";
 }
 
 const formatPrice = (price?: number) => {
@@ -29,22 +34,67 @@ const formatPrice = (price?: number) => {
 };
 
 const NotificationIcon = () => {
-  const { notifications, clearNotifications } = useUser();
+  const { notifications: rawNotifications, clearNotifications } = useUser();
+  const notifications: NotificationItem[] = rawNotifications.map((item) => ({
+    ...item,
+    status: item.status as "read" | "unread",
+  }));
   const [modalVisible, setModalVisible] = useState(false);
+  const slideAnim = useState(new Animated.Value(0))[0];
 
-  const handleNotificationPress = (notification: NotificationItem) => {
-    if (notification.courseId) {
-      router.push({
-        pathname: "/(routes)/course-details",
-        params: { courseId: notification.courseId },
-      });
-      setModalVisible(false);
+  // Đếm số thông báo chưa đọc
+  const unreadCount = useMemo(() => {
+    return notifications.filter((item) => item.status === "unread").length;
+  }, [notifications]);
+
+  // Animation khi mở/đóng modal
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: modalVisible ? 1 : 0,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 10,
+    }).start();
+  }, [modalVisible]);
+
+  const handleNotificationPress = async (notification: NotificationItem) => {
+    try {
+      // Cập nhật trạng thái đã đọc
+      const accessToken = await AsyncStorage.getItem("access_token");
+      const refreshToken = await AsyncStorage.getItem("refresh_token");
+
+      if (accessToken && refreshToken) {
+        await axios.put(
+          `${SERVER_URI}/update-notification/${notification.id}`,
+          {},
+          {
+            headers: {
+              "access-token": accessToken,
+              "refresh-token": refreshToken,
+            },
+          }
+        );
+      }
+
+      // Nếu có courseId, chuyển đến trang chi tiết khóa học
+      if (notification.courseId) {
+        router.push({
+          pathname: "/(routes)/course-details",
+          params: { courseId: notification.courseId },
+        });
+        setModalVisible(false);
+      }
+    } catch (error) {
+      console.error("Lỗi khi cập nhật trạng thái thông báo:", error);
     }
   };
 
   const renderNotification = ({ item }: { item: NotificationItem }) => (
     <TouchableOpacity
-      style={styles.notificationItem}
+      style={[
+        styles.notificationItem,
+        item.status === "unread" && styles.unreadNotification,
+      ]}
       onPress={() => handleNotificationPress(item)}
     >
       <View style={styles.notificationHeader}>
@@ -55,9 +105,16 @@ const NotificationIcon = () => {
           size={24}
           color="#009990"
         />
-        <Text style={styles.notificationTime}>Mới</Text>
+        {item.status === "unread" && <View style={styles.unreadDot} />}
       </View>
-      <Text style={styles.notificationMessage}>{item.message}</Text>
+      <Text
+        style={[
+          styles.notificationMessage,
+          item.status === "unread" && styles.unreadText,
+        ]}
+      >
+        {item.message}
+      </Text>
       {item.price && (
         <Text style={styles.notificationPrice}>
           Giá: {formatPrice(item.price)}
@@ -76,10 +133,24 @@ const NotificationIcon = () => {
         style={styles.iconContainer}
       >
         <Ionicons name="notifications-outline" size={26} color="black" />
-        {notifications.length > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{notifications.length}</Text>
-          </View>
+        {unreadCount > 0 && (
+          <Animated.View
+            style={[
+              styles.badge,
+              {
+                transform: [
+                  {
+                    scale: slideAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, 0.8],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <Text style={styles.badgeText}>{unreadCount}</Text>
+          </Animated.View>
         )}
       </TouchableOpacity>
 
@@ -90,7 +161,21 @@ const NotificationIcon = () => {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
+          <Animated.View
+            style={[
+              styles.modalContainer,
+              {
+                transform: [
+                  {
+                    translateY: slideAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [300, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Thông Báo</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -131,7 +216,7 @@ const NotificationIcon = () => {
                 </TouchableOpacity>
               </View>
             )}
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </View>
@@ -154,6 +239,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
   },
   badgeText: {
     color: "#fff",
@@ -172,6 +262,11 @@ const styles = StyleSheet.create({
     minHeight: "50%",
     maxHeight: "80%",
     padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
   },
   modalHeader: {
     flexDirection: "row",
@@ -256,6 +351,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Nunito_600SemiBold",
     marginLeft: 8,
+  },
+  unreadNotification: {
+    backgroundColor: "#E6F7F6",
+    borderColor: "#009990",
+    shadowColor: "#009990",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  unreadText: {
+    fontFamily: "Nunito_700Bold",
+    color: "#000",
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#009990",
+    position: "absolute",
+    right: 0,
+    top: 0,
   },
 });
 

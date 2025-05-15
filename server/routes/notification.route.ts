@@ -22,10 +22,10 @@ notificationRoute.get(
   getUserNotifications
 );
 
+// Route cho user cập nhật trạng thái thông báo của họ
 notificationRoute.put(
   "/update-notification/:id",
   isAutheticated,
-  authorizeRoles("admin"),
   updateNotification
 );
 

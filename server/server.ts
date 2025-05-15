@@ -16,13 +16,19 @@ export const io = new Server(server, {
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
-  const userId = socket.handshake.query.userId as string;
-  if (userId) {
-    socket.join(userId); 
-    console.log(`User ${userId} joined room ${userId}`);
-  }
+  // Handle join event
+  socket.on("join", (userId) => {
+    console.log(`User ${userId} joining room ${userId}`);
+    socket.join(userId);
+    socket.join("allUsers");
+  });
 
-  socket.join("allUsers"); 
+  // Handle leave event
+  socket.on("leave", (userId) => {
+    console.log(`User ${userId} leaving room ${userId}`);
+    socket.leave(userId);
+    socket.leave("allUsers");
+  });
 
   socket.on("joinAdmin", () => {
     socket.join("adminRoom");
@@ -31,10 +37,6 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("A user disconnected:", socket.id);
-    if (userId) {
-      socket.leave(userId);
-      socket.leave("allUsers");
-    }
   });
 });
 
