@@ -1,7 +1,7 @@
 // frontend/utils/socket.ts
 import { io } from "socket.io-client";
 
-const socket = io("http://192.168.98.89:8001", {
+const socket = io("http://192.168.0.114:8001", {
   autoConnect: false,
   transports: ["websocket"],
   query: {},

@@ -131,23 +131,25 @@ export default function CourseDetailScreen() {
   // Kiểm tra trạng thái mua khóa học từ user context
   const checkPurchaseStatus = useCallback(() => {
     if (user && user.courses && courseId) {
-      console.log("Checking purchase status for course:", courseId);
-      console.log("User courses:", user.courses);
-
-      const isPurchased = user.courses.some(
-        (course) => course.courseId === courseId
-      );
-
-      console.log("Is course purchased?", isPurchased);
-      console.log("Course ID:", courseId);
+      console.log("=== Kiểm tra trạng thái mua khóa học ===");
+      console.log("CourseId cần kiểm tra:", courseId);
       console.log(
-        "User courses IDs:",
-        user.courses.map((course) => course.courseId)
+        "Danh sách khóa học của user:",
+        JSON.stringify(user.courses, null, 2)
       );
 
+      const isPurchased = user.courses.some((course) => {
+        const isMatch = course.courseId === courseId;
+        console.log(
+          `So sánh: ${course.courseId} === ${courseId} -> ${isMatch}`
+        );
+        return isMatch;
+      });
+
+      console.log("Kết quả kiểm tra isPurchased:", isPurchased);
       setCheckPurchased(isPurchased);
     } else {
-      console.log("Missing data for purchase check:", {
+      console.log("Thiếu dữ liệu để kiểm tra mua khóa học:", {
         hasUser: !!user,
         hasCourses: !!(user && user.courses),
         courseId,
@@ -155,6 +157,17 @@ export default function CourseDetailScreen() {
       setCheckPurchased(false);
     }
   }, [user, courseId]);
+
+  // Thêm useEffect để tự động refresh khi component mount
+  useEffect(() => {
+    const initializeData = async () => {
+      console.log("Khởi tạo dữ liệu khóa học...");
+      await fetchUser(); // Lấy lại thông tin user mới nhất
+      checkPurchaseStatus();
+    };
+
+    initializeData();
+  }, []); // Chạy một lần khi component mount
 
   // Sử dụng useFocusEffect để kiểm tra mỗi khi màn hình được focus
   useFocusEffect(
@@ -168,14 +181,17 @@ export default function CourseDetailScreen() {
     checkPurchaseStatus();
   }, [user, courseId, checkPurchaseStatus]);
 
+  // Cập nhật lại onRefresh
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await fetchUser();
+      console.log("Đang làm mới dữ liệu...");
+      await fetchUser(); // Lấy lại thông tin user mới nhất
+      await new Promise((resolve) => setTimeout(resolve, 500)); // Đợi 500ms để đảm bảo dữ liệu được cập nhật
       checkPurchaseStatus();
+      console.log("Làm mới dữ liệu thành công");
     } catch (error) {
-      // Không hiển thị thông báo lỗi khi refresh
-      console.log("Làm mới trạng thái khóa học");
+      console.error("Lỗi khi làm mới dữ liệu:", error);
     } finally {
       setRefreshing(false);
     }

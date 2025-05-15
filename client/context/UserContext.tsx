@@ -149,23 +149,28 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         },
       });
 
-      const dbNotifications: INotification[] =
-        response.data.notifications || [];
-      const formattedNotifications = dbNotifications.map((notification) => ({
-        id: notification._id,
-        message: notification.message,
-        type: notification.status,
-      }));
+      if (response.data.success) {
+        const dbNotifications: INotification[] =
+          response.data.notifications || [];
+        const formattedNotifications = dbNotifications.map((notification) => ({
+          id: notification._id,
+          message: notification.message,
+          type: notification.status,
+        }));
 
-      setNotifications(formattedNotifications);
+        setNotifications(formattedNotifications);
+      }
     } catch (error: any) {
-      console.error("Error fetching notifications:", error);
-      Toast.show("Không thể lấy thông báo. Vui lòng thử lại sau.", {
-        type: "danger",
-        placement: "top",
-        duration: 4000,
-        animationType: "zoom-in",
-      });
+      console.error("Lỗi khi lấy thông báo:", error.message);
+      // Chỉ hiển thị toast khi không phải lỗi 404
+      if (error.response?.status !== 404) {
+        Toast.show("Không thể lấy thông báo. Vui lòng thử lại sau.", {
+          type: "danger",
+          placement: "top",
+          duration: 4000,
+          animationType: "zoom-in",
+        });
+      }
     }
   };
 
