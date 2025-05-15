@@ -1,4 +1,3 @@
-// frontend/components/search/SearchInput.tsx
 import { CategoryType, CoursesType } from "@/types/courses";
 import { SERVER_URI } from "@/utils/uri";
 import { Nunito_700Bold, useFonts } from "@expo-google-fonts/nunito";
@@ -10,6 +9,7 @@ import {
   FlatList,
   Image,
   Modal,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -20,7 +20,13 @@ import DropDownPicker from "react-native-dropdown-picker";
 import { widthPercentageToDP } from "react-native-responsive-screen";
 import CourseCard from "../cards/course.card";
 
-export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: boolean; showFilters?: boolean }) {
+export default function SearchInput({
+  homeScreen,
+  showFilters,
+}: {
+  homeScreen?: boolean;
+  showFilters?: boolean;
+}) {
   const [value, setValue] = useState("");
   const [suggestions, setSuggestions] = useState<CoursesType[]>([]);
   const [courses, setCourses] = useState<CoursesType[]>([]);
@@ -28,7 +34,9 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
   const [categories, setCategories] = useState<CategoryType[]>([]);
   const [openCategory, setOpenCategory] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
-  const [categoryItems, setCategoryItems] = useState<{ label: string; value: string }[]>([]);
+  const [categoryItems, setCategoryItems] = useState<
+    { label: string; value: string }[]
+  >([]);
   const [openSort, setOpenSort] = useState(false);
   const [sortOrder, setSortOrder] = useState("");
   const [sortItems] = useState([
@@ -37,6 +45,7 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
     { label: "Giá: Giảm dần", value: "desc" },
   ]);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -54,7 +63,8 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
     const fetchCategories = async () => {
       try {
         const response = await axios.get(`${SERVER_URI}/get-categories`);
-        const fetchedCategories: CategoryType[] = response.data?.categories || [];
+        const fetchedCategories: CategoryType[] =
+          response.data?.categories || [];
         setCategories(fetchedCategories);
 
         const items = [
@@ -77,17 +87,29 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
   }, []);
 
   useEffect(() => {
-    if (value.trim() === "") {
-      setSuggestions([]);
+    if (!homeScreen) {
+      if (value.trim() === "") {
+        setFilteredCourses(courses);
+        setSuggestions([]);
+      } else {
+        const filteredResults = courses.filter((course) =>
+          course.name.toLowerCase().includes(value.toLowerCase())
+        );
+        setFilteredCourses(filteredResults);
+        setSuggestions(filteredResults);
+      }
     } else {
-      const filteredSuggestions = courses.filter((course) =>
-        course.name.toLowerCase().includes(value.toLowerCase())
-      );
-      setSuggestions(filteredSuggestions);
+      if (value.trim() === "") {
+        setSuggestions([]);
+      } else {
+        const filteredSuggestions = courses.filter((course) =>
+          course.name.toLowerCase().includes(value.toLowerCase())
+        );
+        setSuggestions(filteredSuggestions);
+      }
     }
-  }, [value, courses]);
+  }, [value, courses, homeScreen]);
 
-  // Cập nhật kết quả khi bộ lọc thay đổi
   useEffect(() => {
     const applyFilters = async () => {
       try {
@@ -102,10 +124,17 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
           params.sortOrder = sortOrder;
         }
 
-        const response = await axios.get(`${SERVER_URI}/filter-courses`, { params });
+        const response = await axios.get(`${SERVER_URI}/filter-courses`, {
+          params,
+        });
         const filtered = response.data.courses || [];
 
-        if (homeScreen && value.trim() === "" && selectedCategory === "Tất cả" && !sortOrder) {
+        if (
+          homeScreen &&
+          value.trim() === "" &&
+          selectedCategory === "Tất cả" &&
+          !sortOrder
+        ) {
           setFilteredCourses([]);
         } else {
           setFilteredCourses(filtered);
@@ -117,10 +146,11 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
     };
 
     applyFilters();
-  }, [selectedCategory, sortOrder]); // Lắng nghe thay đổi của selectedCategory và sortOrder
+  }, [selectedCategory, sortOrder]);
 
   const handleSearch = async () => {
     try {
+      setRefreshing(true);
       const params: any = {};
       if (value.trim()) {
         params.name = value.trim();
@@ -132,7 +162,9 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
         params.sortOrder = sortOrder;
       }
 
-      const response = await axios.get(`${SERVER_URI}/filter-courses`, { params });
+      const response = await axios.get(`${SERVER_URI}/filter-courses`, {
+        params,
+      });
       const filtered = response.data.courses || [];
 
       if (homeScreen && value.trim() === "") {
@@ -144,6 +176,8 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
     } catch (error) {
       console.log("Error filtering courses:", error);
       setFilteredCourses([]);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -209,9 +243,14 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
   );
 
   return (
-    <View>
+    <View style={styles.container}>
       <View style={styles.filteringContainer}>
-        <View style={[styles.searchContainer, { width: widthPercentageToDP("80%") }]}>
+        <View
+          style={[
+            styles.searchContainer,
+            { width: widthPercentageToDP("80%") },
+          ]}
+        >
           <TextInput
             style={[styles.input, { fontFamily: "Nunito_700Bold" }]}
             placeholder="Tìm kiếm"
@@ -237,12 +276,15 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
       </View>
 
       {suggestions.length > 0 && (
-        <FlatList
-          data={suggestions}
-          keyExtractor={(item: CoursesType) => item._id}
-          renderItem={renderSuggestionItem}
-          style={styles.suggestionList}
-        />
+        <View style={styles.suggestionWrapper}>
+          <FlatList
+            data={suggestions}
+            keyExtractor={(item: CoursesType) => item._id}
+            renderItem={renderSuggestionItem}
+            style={styles.suggestionList}
+            showsVerticalScrollIndicator={true}
+          />
+        </View>
       )}
 
       {/* Modal bộ lọc */}
@@ -255,8 +297,6 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>Bộ Lọc</Text>
-
-            {/* Dropdown chọn danh mục */}
             <View style={[styles.pickerContainer, { zIndex: 1000 }]}>
               <DropDownPicker
                 open={openCategory}
@@ -273,8 +313,6 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
                 placeholderStyle={styles.dropdownPlaceholder}
               />
             </View>
-
-            {/* Dropdown chọn sắp xếp theo giá */}
             <View style={[styles.pickerContainer, { zIndex: 900 }]}>
               <DropDownPicker
                 open={openSort}
@@ -291,7 +329,6 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
                 placeholderStyle={styles.dropdownPlaceholder}
               />
             </View>
-
             <TouchableOpacity
               style={styles.closeButton}
               onPress={() => setIsFilterModalVisible(false)}
@@ -302,7 +339,7 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
         </View>
       </Modal>
 
-      <View style={{ paddingHorizontal: 10 }}>
+      <View style={styles.listWrapper}>
         <FlatList
           data={filteredCourses}
           keyExtractor={(item: CoursesType) => item._id}
@@ -311,25 +348,30 @@ export default function SearchInput({ homeScreen, showFilters }: { homeScreen?: 
               ? renderCourseItem
               : ({ item }) => <CourseCard item={item} key={item._id} />
           }
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleSearch}
+              colors={["#009990"]}
+              tintColor="#009990"
+            />
+          }
+          showsVerticalScrollIndicator={true}
+          contentContainerStyle={{ paddingBottom: 20 }}
         />
       </View>
+
       {!homeScreen && filteredCourses?.length === 0 && value.trim() !== "" && (
-        <Text
-          style={{
-            textAlign: "center",
-            paddingTop: 50,
-            fontSize: 20,
-            fontWeight: "600",
-          }}
-        >
-          Không có dữ liệu để hiển thị!
-        </Text>
+        <Text style={styles.noDataText}>Không có dữ liệu để hiển thị!</Text>
       )}
     </View>
   );
 }
 
 export const styles = StyleSheet.create({
+  container: {
+    flex: 1, // Đảm bảo SearchInput chiếm toàn bộ không gian của màn hình cha
+  },
   filteringContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -367,16 +409,30 @@ export const styles = StyleSheet.create({
     paddingVertical: 10,
     height: 48,
   },
+  suggestionWrapper: {
+    flex: 0, // Đảm bảo suggestion list không chiếm toàn bộ không gian
+    maxHeight: 200, // Giới hạn chiều cao của suggestion list
+    paddingHorizontal: 10,
+  },
   suggestionList: {
     backgroundColor: "#fff",
     borderRadius: 8,
     marginHorizontal: 16,
-    maxHeight: 200,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+  },
+  listWrapper: {
+    flex: 1, // Đảm bảo FlatList chính chiếm phần còn lại của không gian
+    paddingHorizontal: 10,
+  },
+  noDataText: {
+    textAlign: "center",
+    paddingTop: 50,
+    fontSize: 20,
+    fontWeight: "600",
   },
   modalOverlay: {
     flex: 1,

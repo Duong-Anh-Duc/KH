@@ -1,18 +1,35 @@
 // screens/auth/AdminLoginScreen.tsx
-import { ROLES } from '@/constants/constants';
-import { useAuth } from '@/context/AuthContext';
-import { authStyles } from '@/styles/auth/auth.styles';
-import { commonStyles } from '@/styles/common/common.styles';
-import api from '@/utils/api';
-import { Nunito_400Regular, Nunito_500Medium, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
-import { Raleway_600SemiBold, Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway';
-import { Entypo } from '@expo/vector-icons';
+import { ROLES } from "@/constants/constants";
+import { useAuth } from "@/context/AuthContext";
+import { authStyles } from "@/styles/auth/auth.styles";
+import { commonStyles } from "@/styles/common/common.styles";
+import api from "@/utils/api";
+import {
+  Nunito_400Regular,
+  Nunito_500Medium,
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+} from "@expo-google-fonts/nunito";
+import {
+  Raleway_600SemiBold,
+  Raleway_700Bold,
+  useFonts,
+} from "@expo-google-fonts/raleway";
+import { Entypo } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { Toast } from 'react-native-toast-notifications';
-import CustomInput from '../../components/CustomInput';
+import { router } from "expo-router";
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { Toast } from "react-native-toast-notifications";
+import CustomInput from "../../components/CustomInput";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const AdminLoginScreen = () => {
   const [isPasswordVisible, setPasswordVisible] = useState(false);
@@ -81,35 +98,27 @@ const AdminLoginScreen = () => {
     return true;
   };
 
- // screens/auth/AdminLoginScreen.tsx (trích đoạn)
-const handleSignIn = async () => {
+  const handleSignIn = async () => {
     setButtonSpinner(true);
-  
+
     const isEmailValid = validateEmail();
     const isPasswordValid = validatePassword();
-  
+
     if (!isEmailValid || !isPasswordValid) {
       setButtonSpinner(false);
       return;
     }
-  
+
     try {
-      const res = await api.post(`/login`, {
+      const res = await api.post("/login", {
         email: userInfo.email,
         password: userInfo.password,
       });
-  
+
       const { accessToken, refreshToken, user } = res.data;
-  
-      if (!accessToken) {
-        throw new Error("Thiếu accessToken trong phản hồi");
-      }
-      if (!refreshToken) {
-        throw new Error("Thiếu refreshToken trong phản hồi");
-      }
-  
+
       if (user.role !== ROLES.ADMIN) {
-        Toast.show("Bạn không có quyền truy cập khu vực Admin!", {
+        Toast.show("Bạn không có quyền truy cập!", {
           type: "danger",
           placement: "top",
           duration: 3000,
@@ -117,32 +126,47 @@ const handleSignIn = async () => {
         setButtonSpinner(false);
         return;
       }
-  
+
+      await AsyncStorage.setItem("access_token", accessToken);
+      await AsyncStorage.setItem("refresh_token", refreshToken);
+      await AsyncStorage.setItem("user_id", user._id);
+
       setAuth(accessToken, refreshToken, user);
       Toast.show("Đăng nhập thành công!", {
         type: "success",
         placement: "top",
         duration: 3000,
       });
-  
-      router.push("/(admin)/dashboard"); // Điều hướng đến (admin)/dashboard sau khi đăng nhập
+
+      router.push("/(admin)/dashboard");
     } catch (error: any) {
       console.error("Lỗi đăng nhập:", error.response?.data || error.message);
-      Toast.show(error.response?.data?.message || "Email hoặc mật khẩu không đúng!", {
-        type: "danger",
-        placement: "top",
-        duration: 3000,
-      });
+      Toast.show(
+        error.response?.data?.message || "Email hoặc mật khẩu không đúng!",
+        {
+          type: "danger",
+          placement: "top",
+          duration: 3000,
+        }
+      );
     } finally {
       setButtonSpinner(false);
     }
   };
 
   return (
-    <LinearGradient colors={["#009990", "#F6F7F9"]} style={{ flex: 1, paddingTop: 20 }}>
+    <LinearGradient
+      colors={["#009990", "#F6F7F9"]}
+      style={{ flex: 1, paddingTop: 20 }}
+    >
       <ScrollView>
-        <Image style={authStyles.signInImage} source={require('@/assets/sign-in/sign_in.png')} />
-        <Text style={[authStyles.welcomeText, { fontFamily: "Raleway_700Bold" }]}>
+        <Image
+          style={authStyles.signInImage}
+          source={require("@/assets/sign-in/sign_in.png")}
+        />
+        <Text
+          style={[authStyles.welcomeText, { fontFamily: "Raleway_700Bold" }]}
+        >
           Đăng Nhập Admin
         </Text>
         <Text style={authStyles.learningText}>
@@ -155,7 +179,9 @@ const handleSignIn = async () => {
               keyboardType="email-address"
               value={userInfo.email}
               placeholder="Nhập Email"
-              onChangeText={(value) => setUserInfo({ ...userInfo, email: value })}
+              onChangeText={(value) =>
+                setUserInfo({ ...userInfo, email: value })
+              }
               onSubmitEditing={validateEmail}
               returnKeyType="next"
             />
@@ -172,10 +198,14 @@ const handleSignIn = async () => {
                 iconName="lock-closed-outline"
                 secureTextEntry
                 isPasswordVisible={isPasswordVisible}
-                togglePasswordVisibility={() => setPasswordVisible(!isPasswordVisible)}
+                togglePasswordVisibility={() =>
+                  setPasswordVisible(!isPasswordVisible)
+                }
                 value={userInfo.password}
                 placeholder="Mật Khẩu"
-                onChangeText={(value) => setUserInfo({ ...userInfo, password: value })}
+                onChangeText={(value) =>
+                  setUserInfo({ ...userInfo, password: value })
+                }
                 onSubmitEditing={handleSignIn}
                 returnKeyType="done"
               />
@@ -189,9 +219,14 @@ const handleSignIn = async () => {
               )}
             </View>
           </View>
-          <TouchableOpacity onPress={() => router.push("../(routes)/forgot-password")}>
+          <TouchableOpacity
+            onPress={() => router.push("../(routes)/forgot-password")}
+          >
             <Text
-              style={[authStyles.forgotSection, { fontFamily: "Nunito_600SemiBold", color: "blue" }]}
+              style={[
+                authStyles.forgotSection,
+                { fontFamily: "Nunito_600SemiBold", color: "blue" },
+              ]}
             >
               Quên Mật Khẩu?
             </Text>

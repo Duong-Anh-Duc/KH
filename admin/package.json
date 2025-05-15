@@ -19,6 +19,7 @@
     "@react-navigation/drawer": "^7.3.12",
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.9",
+    "@types/socket.io-client": "^1.4.36",
     "axios": "^1.9.0",
     "axios-retry": "^4.5.0",
     "expo": "~53.0.5",
@@ -48,7 +49,8 @@
     "react-native-screens": "~4.10.0",
     "react-native-toast-notifications": "^3.4.0",
     "react-native-web": "~0.20.0",
-    "react-native-webview": "13.13.5"
+    "react-native-webview": "13.13.5",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

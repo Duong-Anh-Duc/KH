@@ -2,13 +2,26 @@ import CustomHeader from "@/components/CustomHeader";
 import { dashboardStyles } from "@/styles/dashboard/dashboard.styles";
 import { theme } from "@/styles/theme";
 import api from "@/utils/api";
-import { Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
-import { Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway';
-import { DrawerNavigationProp } from '@react-navigation/drawer';
+import {
+  Nunito_400Regular,
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+} from "@expo-google-fonts/nunito";
+import { Raleway_700Bold, useFonts } from "@expo-google-fonts/raleway";
+import { DrawerNavigationProp } from "@react-navigation/drawer";
 import * as ImagePicker from "expo-image-picker"; // Đổi tên import để dùng chung cho cả ảnh và video
 import { Link, useLocalSearchParams, useNavigation } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Toast } from "react-native-toast-notifications";
 
 // Định nghĩa ParamList cho DrawerNavigator
@@ -113,7 +126,13 @@ const CreateLessonScreen = () => {
       return;
     }
 
-    if (!lessonData.title || !lessonData.description || !lessonData.videoSection || !lessonData.videoLength || !lessonData.videoPlayer) {
+    if (
+      !lessonData.title ||
+      !lessonData.description ||
+      !lessonData.videoSection ||
+      !lessonData.videoLength ||
+      !lessonData.videoPlayer
+    ) {
       Toast.show("Vui lòng điền đầy đủ thông tin!", { type: "danger" });
       return;
     }
@@ -153,12 +172,14 @@ const CreateLessonScreen = () => {
 
       await api.post("/add-lesson", formData, {
         headers: { "Content-Type": "multipart/form-data" },
-        timeout : 100000,
+        timeout: 100000,
       });
       Toast.show("Thêm bài học thành công!", { type: "success" });
     } catch (error: any) {
       console.error("Lỗi khi thêm bài học:", error);
-      Toast.show(error.response?.data?.message || "Không thể thêm bài học!", { type: "danger" });
+      Toast.show(error.response?.data?.message || "Không thể thêm bài học!", {
+        type: "danger",
+      });
     } finally {
       setLoading(false);
     }
@@ -169,49 +190,60 @@ const CreateLessonScreen = () => {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container}>
           <CustomHeader title="Thêm Bài Học" navigation={navigation} />
-          <ScrollView style={[dashboardStyles.container, styles.contentContainer]}>
+          <ScrollView
+            style={[dashboardStyles.container, styles.contentContainer]}
+          >
             <TextInput
               style={styles.input}
               placeholder="Tiêu đề bài học"
               value={lessonData.title}
-              onChangeText={(text) => setLessonData({ ...lessonData, title: text })}
+              onChangeText={(text) =>
+                setLessonData({ ...lessonData, title: text })
+              }
             />
             <TextInput
               style={[styles.input, { height: 100 }]}
               placeholder="Mô tả"
               value={lessonData.description}
-              onChangeText={(text) => setLessonData({ ...lessonData, description: text })}
+              onChangeText={(text) =>
+                setLessonData({ ...lessonData, description: text })
+              }
               multiline
             />
             <TextInput
               style={styles.input}
               placeholder="Phần video (Video Section)"
               value={lessonData.videoSection}
-              onChangeText={(text) => setLessonData({ ...lessonData, videoSection: text })}
+              onChangeText={(text) =>
+                setLessonData({ ...lessonData, videoSection: text })
+              }
             />
             <TextInput
               style={styles.input}
               placeholder="Độ dài video (phút)"
               value={lessonData.videoLength}
-              onChangeText={(text) => setLessonData({ ...lessonData, videoLength: text })}
+              onChangeText={(text) =>
+                setLessonData({ ...lessonData, videoLength: text })
+              }
               keyboardType="numeric"
             />
             <TextInput
               style={styles.input}
               placeholder="Video Player (e.g., Vimeo, YouTube)"
               value={lessonData.videoPlayer}
-              onChangeText={(text) => setLessonData({ ...lessonData, videoPlayer: text })}
+              onChangeText={(text) =>
+                setLessonData({ ...lessonData, videoPlayer: text })
+              }
             />
             <TextInput
               style={styles.input}
               placeholder="Gợi ý (nếu có)"
               value={lessonData.suggestion}
-              onChangeText={(text) => setLessonData({ ...lessonData, suggestion: text })}
+              onChangeText={(text) =>
+                setLessonData({ ...lessonData, suggestion: text })
+              }
             />
-            <TouchableOpacity
-              style={styles.videoButton}
-              onPress={pickVideo}
-            >
+            <TouchableOpacity style={styles.videoButton} onPress={pickVideo}>
               <Text style={styles.videoButtonText}>
                 {videoFile ? "Thay đổi video" : "Chọn video bài học"}
               </Text>
@@ -221,12 +253,17 @@ const CreateLessonScreen = () => {
               onPress={pickThumbnail}
             >
               <Text style={styles.thumbnailButtonText}>
-                {thumbnailFile ? "Thay đổi thumbnail" : "Chọn thumbnail bài học"}
+                {thumbnailFile
+                  ? "Thay đổi thumbnail"
+                  : "Chọn thumbnail bài học"}
               </Text>
             </TouchableOpacity>
             <View style={styles.buttonContainer}>
               <TouchableOpacity
-                style={[styles.button, { backgroundColor: theme.colors.primary }]}
+                style={[
+                  styles.button,
+                  { backgroundColor: theme.colors.primary },
+                ]}
                 onPress={handleCreateLesson}
               >
                 {loading ? (
@@ -235,8 +272,18 @@ const CreateLessonScreen = () => {
                   <Text style={styles.buttonText}>Thêm Bài Học</Text>
                 )}
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.button, { backgroundColor: theme.colors.disabled }]}>
-                <Link href={{ pathname: "/(admin)/manage-courses/course-details", params: { courseId } }}>
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  { backgroundColor: theme.colors.disabled },
+                ]}
+              >
+                <Link
+                  href={{
+                    pathname: "/(admin)/manage-courses/course-details",
+                    params: { courseId },
+                  }}
+                >
                   <Text style={styles.buttonText}>Quay Lại</Text>
                 </Link>
               </TouchableOpacity>

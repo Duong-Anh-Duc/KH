@@ -1,11 +1,15 @@
 import { useAuth } from "@/context/AuthContext";
 import { theme } from "@/styles/theme";
 import { Ionicons } from "@expo/vector-icons";
-import { DrawerNavigationProp, useDrawerStatus } from "@react-navigation/drawer";
+import {
+  DrawerNavigationProp,
+  useDrawerStatus,
+} from "@react-navigation/drawer";
 import { router } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Toast } from "react-native-toast-notifications";
+import NotificationIcon from "./notification/NotificationIcon";
 
 // Định nghĩa ParamList cho DrawerNavigator
 type DrawerParamList = {
@@ -69,9 +73,9 @@ const CustomHeader = ({ title, navigation }: CustomHeaderProps) => {
         />
       </TouchableOpacity>
       <Text style={styles.headerTitle}>{title}</Text>
-      <TouchableOpacity style={styles.headerButton} onPress={handleLogout}>
-        <Ionicons name="log-out-outline" size={30} color={theme.colors.white} />
-      </TouchableOpacity>
+      <View style={styles.headerButton}>
+        <NotificationIcon />
+      </View>
     </View>
   );
 };

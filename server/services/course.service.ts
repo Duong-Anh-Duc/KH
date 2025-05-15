@@ -19,8 +19,12 @@ interface CloudinaryResource {
 }
 
 // backend/services/course.service.ts
-export const editCourseService = async (courseId: string, data: any, files: any) => {
-  const courseData = await CourseModel.findById(courseId) as any;
+export const editCourseService = async (
+  courseId: string,
+  data: any,
+  files: any
+) => {
+  const courseData = (await CourseModel.findById(courseId)) as any;
   if (!courseData) {
     throw new ErrorHandler("Khóa học không tồn tại", 404);
   }
@@ -41,7 +45,9 @@ export const editCourseService = async (courseId: string, data: any, files: any)
 
   const demoVideo = files?.demoVideo;
   if (demoVideo) {
-    await cloudinary.v2.uploader.destroy(courseData.demoUrl, { resource_type: "video" });
+    await cloudinary.v2.uploader.destroy(courseData.demoUrl, {
+      resource_type: "video",
+    });
     const myCloud = await cloudinary.v2.uploader.upload(demoVideo[0].path, {
       folder: "courses/videos",
       resource_type: "video",
@@ -113,7 +119,10 @@ export const getAllCoursesService = async () => {
   return courses;
 };
 
-export const getCourseByUserService = async (userCourses: any[], courseId: string) => {
+export const getCourseByUserService = async (
+  userCourses: any[],
+  courseId: string
+) => {
   const courseExists = userCourses?.find(
     (course: any) => course.courseId.toString() === courseId.toString()
   );
@@ -173,7 +182,12 @@ export const addQuestionService = async (
 
 export const addAnswerService = async (
   user: any,
-  answerData: { answer: string; courseId: string; contentId: string; questionId: string }
+  answerData: {
+    answer: string;
+    courseId: string;
+    contentId: string;
+    questionId: string;
+  }
 ) => {
   const { answer, courseId, contentId, questionId } = answerData;
 
@@ -382,7 +396,8 @@ export const generateVideoUrlService = async (videoId: string) => {
 };
 
 export const filterCoursesService = async (queryParams: any) => {
-  const { name, categories, level, minRating, minPurchased, sortOrder } = queryParams;
+  const { name, categories, level, minRating, minPurchased, sortOrder } =
+    queryParams;
 
   const query: any = {};
 
@@ -424,11 +439,11 @@ export const filterCoursesService = async (queryParams: any) => {
 
 export const getCategoriesService = async () => {
   const courses = await CourseModel.find().select("categories");
-  const categories = [...new Set(courses.map((course) => course.categories))].map(
-    (category) => ({
-      title: category,
-    })
-  );
+  const categories = [
+    ...new Set(courses.map((course) => course.categories)),
+  ].map((category) => ({
+    title: category,
+  }));
   return categories;
 };
 export const createCourseService = async (data: any, files: any) => {
@@ -478,11 +493,18 @@ export const createCourseService = async (data: any, files: any) => {
   let parsedCourseData = courseData ? JSON.parse(courseData) : [];
   if (files && files.courseVideos) {
     const courseVideoFiles = files.courseVideos;
-    for (let i = 0; i < courseVideoFiles.length && i < parsedCourseData.length; i++) {
-      const myCloud = await cloudinary.v2.uploader.upload(courseVideoFiles[i].path, {
-        folder: "courses/videos",
-        resource_type: "video",
-      });
+    for (
+      let i = 0;
+      i < courseVideoFiles.length && i < parsedCourseData.length;
+      i++
+    ) {
+      const myCloud = await cloudinary.v2.uploader.upload(
+        courseVideoFiles[i].path,
+        {
+          folder: "courses/videos",
+          resource_type: "video",
+        }
+      );
       parsedCourseData[i].videoUrl = myCloud.secure_url;
       fs.unlinkSync(courseVideoFiles[i].path);
     }
@@ -518,6 +540,7 @@ export const createCourseService = async (data: any, files: any) => {
         title: "Khóa Học Mới",
         message: `Khóa học mới: ${course.name} vừa được thêm! Khám phá ngay.`,
         status: "unread",
+        courseId: course._id,
       });
     })
   );
@@ -537,10 +560,30 @@ export const createCourseService = async (data: any, files: any) => {
 };
 
 export const addLessonToCourseService = async (data: any, files: any) => {
-  const { courseId, title, description, videoSection, videoLength, videoPlayer, links, suggestion, questions } = data;
+  const {
+    courseId,
+    title,
+    description,
+    videoSection,
+    videoLength,
+    videoPlayer,
+    links,
+    suggestion,
+    questions,
+  } = data;
 
-  if (!courseId || !title || !description || !videoSection || !videoLength || !videoPlayer) {
-    throw new ErrorHandler("Vui lòng cung cấp đầy đủ các trường bắt buộc cho bài học", 400);
+  if (
+    !courseId ||
+    !title ||
+    !description ||
+    !videoSection ||
+    !videoLength ||
+    !videoPlayer
+  ) {
+    throw new ErrorHandler(
+      "Vui lòng cung cấp đầy đủ các trường bắt buộc cho bài học",
+      400
+    );
   }
 
   const course = await CourseModel.findById(courseId);
@@ -614,10 +657,32 @@ export const addLessonToCourseService = async (data: any, files: any) => {
   return course;
 };
 export const editLessonService = async (data: any, files: any) => {
-  const { courseId, lessonId, title, description, videoSection, videoLength, videoPlayer, links, suggestion, questions } = data;
+  const {
+    courseId,
+    lessonId,
+    title,
+    description,
+    videoSection,
+    videoLength,
+    videoPlayer,
+    links,
+    suggestion,
+    questions,
+  } = data;
 
-  if (!courseId || !lessonId || !title || !description || !videoSection || !videoLength || !videoPlayer) {
-    throw new ErrorHandler("Vui lòng cung cấp đầy đủ các trường bắt buộc cho bài học", 400);
+  if (
+    !courseId ||
+    !lessonId ||
+    !title ||
+    !description ||
+    !videoSection ||
+    !videoLength ||
+    !videoPlayer
+  ) {
+    throw new ErrorHandler(
+      "Vui lòng cung cấp đầy đủ các trường bắt buộc cho bài học",
+      400
+    );
   }
 
   const course = await CourseModel.findById(courseId);
@@ -625,7 +690,9 @@ export const editLessonService = async (data: any, files: any) => {
     throw new ErrorHandler("Không tìm thấy khóa học", 404);
   }
 
-  const lessonIndex = course.courseData.findIndex((item: any) => item._id.toString() === lessonId);
+  const lessonIndex = course.courseData.findIndex(
+    (item: any) => item._id.toString() === lessonId
+  );
   if (lessonIndex === -1) {
     throw new ErrorHandler("Không tìm thấy bài học", 404);
   }
@@ -635,7 +702,9 @@ export const editLessonService = async (data: any, files: any) => {
     if (videoUrl) {
       const videoPublicId = videoUrl.split("/").pop()?.split(".")[0];
       if (videoPublicId) {
-        await cloudinary.v2.uploader.destroy(videoPublicId, { resource_type: "video" });
+        await cloudinary.v2.uploader.destroy(videoPublicId, {
+          resource_type: "video",
+        });
       }
     }
     const videoFile = files.videoFile[0];
@@ -647,7 +716,8 @@ export const editLessonService = async (data: any, files: any) => {
     fs.unlinkSync(videoFile.path);
   }
 
-  let videoThumbnail: CloudinaryResource = course.courseData[lessonIndex].videoThumbnail || { public_id: "", url: "" };
+  let videoThumbnail: CloudinaryResource = course.courseData[lessonIndex]
+    .videoThumbnail || { public_id: "", url: "" };
   if (files && files.thumbnailFile) {
     if (videoThumbnail.public_id) {
       await cloudinary.v2.uploader.destroy(videoThumbnail.public_id);
@@ -673,7 +743,9 @@ export const editLessonService = async (data: any, files: any) => {
   course.courseData[lessonIndex].videoPlayer = videoPlayer;
   course.courseData[lessonIndex].links = links ? JSON.parse(links) : [];
   course.courseData[lessonIndex].suggestion = suggestion || "";
-  course.courseData[lessonIndex].questions = questions ? JSON.parse(questions) : [];
+  course.courseData[lessonIndex].questions = questions
+    ? JSON.parse(questions)
+    : [];
   course.courseData[lessonIndex].videoThumbnail = videoThumbnail;
 
   await course.save();
@@ -682,7 +754,10 @@ export const editLessonService = async (data: any, files: any) => {
   return course;
 };
 
-export const hideCourseService = async (courseId: string, isHidden: boolean) => {
+export const hideCourseService = async (
+  courseId: string,
+  isHidden: boolean
+) => {
   const course = await CourseModel.findById(courseId);
   if (!course) {
     throw new ErrorHandler("Khóa học không tồn tại", 404);
@@ -695,13 +770,19 @@ export const hideCourseService = async (courseId: string, isHidden: boolean) => 
   return course;
 };
 
-export const hideLessonService = async (courseId: string, contentId: string, isHidden: boolean) => {
+export const hideLessonService = async (
+  courseId: string,
+  contentId: string,
+  isHidden: boolean
+) => {
   const course = await CourseModel.findById(courseId);
   if (!course) {
     throw new ErrorHandler("Khóa học không tồn tại", 404);
   }
 
-  const lessonIndex = course.courseData.findIndex((item: any) => item._id.toString() === contentId);
+  const lessonIndex = course.courseData.findIndex(
+    (item: any) => item._id.toString() === contentId
+  );
   if (lessonIndex === -1) {
     throw new ErrorHandler("Không tìm thấy bài học", 404);
   }
@@ -719,12 +800,16 @@ export const getEnrolledUsersService = async (courseId: string) => {
     throw new ErrorHandler("Khóa học không tồn tại", 404);
   }
 
-  const users = await userModel.find({
-    "courses.courseId": courseId,
-  }).select("name email courses");
+  const users = await userModel
+    .find({
+      "courses.courseId": courseId,
+    })
+    .select("name email courses");
 
-  return users.map(user => {
-    const courseEntry = user.courses.find((c: any) => c.courseId.toString() === courseId);
+  return users.map((user) => {
+    const courseEntry = user.courses.find(
+      (c: any) => c.courseId.toString() === courseId
+    );
     return {
       _id: user._id,
       name: user.name,

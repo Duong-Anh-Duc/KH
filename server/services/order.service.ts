@@ -83,10 +83,7 @@ export const createMobileOrderService = async (data: CreateMobileOrderData) => {
     );
     if (courseExistInUser) {
       console.log(`Người dùng đã mua khóa học ${course.courseName} trước đó.`);
-      throw new ErrorHandler(
-        `Bạn đã mua khóa học: ${course.courseName}`,
-        400
-      );
+      throw new ErrorHandler(`Bạn đã mua khóa học: ${course.courseName}`, 400);
     }
   }
 
@@ -103,8 +100,10 @@ export const createMobileOrderService = async (data: CreateMobileOrderData) => {
     status: payment_info.paymentIntent?.status || "succeeded",
     amount: payment_info.paymentIntent?.amount || totalPrice * 100,
     currency: payment_info.paymentIntent?.currency || "vnd",
-    paymentMethod: payment_info.paymentIntent?.payment_method_types?.[0] || "card",
-    created: payment_info.paymentIntent?.created || Math.floor(Date.now() / 1000),
+    paymentMethod:
+      payment_info.paymentIntent?.payment_method_types?.[0] || "card",
+    created:
+      payment_info.paymentIntent?.created || Math.floor(Date.now() / 1000),
   };
   console.log("Thông tin thanh toán đã định dạng:", formattedPaymentInfo);
 
@@ -115,7 +114,8 @@ export const createMobileOrderService = async (data: CreateMobileOrderData) => {
     courses: coursesInCart,
     payment_info: formattedPaymentInfo,
     totalPrice,
-    status: formattedPaymentInfo.status === "succeeded" ? "Completed" : "Failed",
+    status:
+      formattedPaymentInfo.status === "succeeded" ? "Completed" : "Failed",
   });
   console.log("Đơn hàng đã được tạo:", order);
 
@@ -127,14 +127,17 @@ export const createMobileOrderService = async (data: CreateMobileOrderData) => {
   console.log("Cập nhật danh sách khóa học đã mua của người dùng...");
   coursesInCart.forEach((course) => {
     if (course.courseId) {
-      user.courses.push({ 
+      user.courses.push({
         courseId: course.courseId,
         enrollmentDate: new Date(),
       });
     }
   });
   await user.save();
-  console.log("Danh sách khóa học của người dùng sau khi cập nhật:", user.courses);
+  console.log(
+    "Danh sách khóa học của người dùng sau khi cập nhật:",
+    user.courses
+  );
 
   console.log("Cập nhật Redis với thông tin người dùng mới...");
   await redis.set(userId, JSON.stringify(user));
@@ -147,13 +150,18 @@ export const createMobileOrderService = async (data: CreateMobileOrderData) => {
   await cart.save();
   console.log("Giỏ hàng sau khi xóa:", cart);
 
-  console.log("Tạo thông báo cho người dùng...");
-  await NotificationModel.create({
-    user: userId,
-    title: "Đơn Hàng Mới",
-    message: `Bạn đã đặt mua thành công ${coursesInCart.length} khóa học`,
-  });
-  console.log("Thông báo đã được tạo.");
+  console.log("Tạo thông báo cho từng khóa học");
+  for (const course of coursesInCart) {
+    await NotificationModel.create({
+      userId: userId,
+      title: "Đơn Hàng Mới",
+      message: `Bạn đã mua thành công khóa học "${course.courseName}"`,
+      courseId: course.courseId,
+      price: course.priceAtPurchase,
+      status: "unread",
+    });
+  }
+  console.log("Đã tạo thông báo cho tất cả khóa học.");
 
   // Gửi thông báo qua socket.io cho học viên
   io.to(userId).emit("orderSuccess", {
@@ -163,10 +171,38 @@ export const createMobileOrderService = async (data: CreateMobileOrderData) => {
 
   // Gửi thông báo qua socket.io cho quản trị viên
   const admins = await userModel.find({ role: "admin" });
-  admins.forEach((admin) => {
+  admins.forEach(async (admin) => {
+    // Tạo thông báo trong database cho admin
+    const notification = await NotificationModel.create({
+      userId: admin._id.toString(),
+      title: "Đơn Hàng Mới",
+      message: `${
+        user.name
+      } đã mua khóa học với tổng giá ${totalPrice.toLocaleString("vi-VN")}đ`,
+      status: "unread",
+      type: "order",
+      order: {
+        _id: order._id,
+        userName: user.name,
+        courses: coursesInCart,
+        totalPrice: totalPrice,
+        createdAt: order.createdAt,
+      },
+    });
+
+    // Gửi thông báo qua socket
     io.to(admin._id.toString()).emit("newOrder", {
-      message: `Đơn hàng mới từ ${user.name}: ${coursesInCart.map((c: any) => c.courseName).join(", ")}`,
-      order,
+      message: `Đơn hàng mới từ ${user.name}`,
+      order: {
+        _id: order._id,
+        userName: user.name,
+        courses: coursesInCart,
+        totalPrice: totalPrice,
+        createdAt: order.createdAt,
+      },
+      _id: notification._id,
+      type: "order",
+      status: "unread",
     });
   });
 
@@ -177,7 +213,10 @@ export const createMobileOrderService = async (data: CreateMobileOrderData) => {
       if (courseDoc) {
         courseDoc.purchased = (courseDoc.purchased || 0) + 1;
         await courseDoc.save();
-        console.log(`Đã cập nhật số lượng người mua cho khóa học ${course.courseName}:`, courseDoc.purchased);
+        console.log(
+          `Đã cập nhật số lượng người mua cho khóa học ${course.courseName}:`,
+          courseDoc.purchased
+        );
       }
     })
   );
@@ -239,7 +278,10 @@ export const newPaymentService = async (amount: number) => {
   }
 
   const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
-  console.log("Khởi tạo Stripe với STRIPE_SECRET_KEY:", process.env.STRIPE_SECRET_KEY ? "Đã thiết lập" : "Chưa thiết lập");
+  console.log(
+    "Khởi tạo Stripe với STRIPE_SECRET_KEY:",
+    process.env.STRIPE_SECRET_KEY ? "Đã thiết lập" : "Chưa thiết lập"
+  );
 
   try {
     console.log("Tạo PaymentIntent với Stripe...");
@@ -269,8 +311,12 @@ export const newPaymentService = async (amount: number) => {
   }
 };
 
-export const getPaymentIntentDetailsService = async (paymentIntentId: string) => {
-  console.log("Bắt đầu lấy chi tiết PaymentIntent trong getPaymentIntentDetailsService...");
+export const getPaymentIntentDetailsService = async (
+  paymentIntentId: string
+) => {
+  console.log(
+    "Bắt đầu lấy chi tiết PaymentIntent trong getPaymentIntentDetailsService..."
+  );
   console.log("PaymentIntent ID:", paymentIntentId);
 
   if (!paymentIntentId) {
@@ -279,7 +325,10 @@ export const getPaymentIntentDetailsService = async (paymentIntentId: string) =>
   }
 
   const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
-  console.log("Khởi tạo Stripe với STRIPE_SECRET_KEY:", process.env.STRIPE_SECRET_KEY ? "Đã thiết lập" : "Chưa thiết lập");
+  console.log(
+    "Khởi tạo Stripe với STRIPE_SECRET_KEY:",
+    process.env.STRIPE_SECRET_KEY ? "Đã thiết lập" : "Chưa thiết lập"
+  );
 
   try {
     console.log("Lấy chi tiết PaymentIntent từ Stripe...");

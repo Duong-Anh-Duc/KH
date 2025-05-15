@@ -5,7 +5,13 @@ import { SERVER_URI } from "@/utils/uri";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { router } from "expo-router";
-import React, { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { Toast } from "react-native-toast-notifications";
 
 type CartItemType = {
@@ -128,7 +134,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
     setIsFetching(true);
     try {
-      const response = await makeAuthenticatedRequest("get", `${SERVER_URI}/get-cart`);
+      const response = await makeAuthenticatedRequest(
+        "get",
+        `${SERVER_URI}/get-cart`
+      );
       const newCartItems = response.data.cart.items || [];
       setCartItems(newCartItems);
     } catch (error: any) {
@@ -151,9 +160,13 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       return;
     }
 
-    const isCourseInCart = cartItems.some((item) => item.courseId === course._id);
+    const isCourseInCart = cartItems.some(
+      (item) => item.courseId === course._id
+    );
     if (isCourseInCart) {
-      setErrorMessage(`Khóa học "${course.name}" đã có trong giỏ hàng của bạn!`);
+      setErrorMessage(
+        `Khóa học "${course.name}" đã có trong giỏ hàng của bạn!`
+      );
       Toast.show(`Khóa học "${course.name}" đã có trong giỏ hàng của bạn!`, {
         type: "warning",
         placement: "top",
@@ -177,7 +190,9 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       setShouldFetchCart(false);
     } catch (error: any) {
       console.error("Lỗi khi thêm vào giỏ hàng:", error);
-      const errorMsg = error.response?.data?.message || "Không thể thêm vào giỏ hàng. Vui lòng thử lại sau!";
+      const errorMsg =
+        error.response?.data?.message ||
+        "Không thể thêm vào giỏ hàng. Vui lòng thử lại sau!";
       setErrorMessage(errorMsg);
       Toast.show(errorMsg, {
         type: "warning",
@@ -226,7 +241,9 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       setErrorMessage(null);
     } catch (error: any) {
       console.error("Lỗi khi xóa khỏi giỏ hàng:", error);
-      setErrorMessage("Không thể xóa sản phẩm khỏi giỏ hàng. Vui lòng thử lại!");
+      setErrorMessage(
+        "Không thể xóa sản phẩm khỏi giỏ hàng. Vui lòng thử lại!"
+      );
     } finally {
       setIsFetching(false);
     }
@@ -291,7 +308,11 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       setCartItems((prevItems) =>
         prevItems.map((item) =>
           item.courseId === data.course._id
-            ? { ...item, priceAtPurchase: data.course.price, courseName: data.course.name }
+            ? {
+                ...item,
+                priceAtPurchase: data.course.price,
+                courseName: data.course.name,
+              }
             : item
         )
       );
@@ -314,7 +335,18 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   }, [user, isFetching, lastAddToCartTime, shouldFetchCart]);
 
   return (
-    <CartContext.Provider value={{ cartItems, addToCart, removeFromCart, clearCart, fetchCart, isFetching, errorMessage, clearError }}>
+    <CartContext.Provider
+      value={{
+        cartItems,
+        addToCart,
+        removeFromCart,
+        clearCart,
+        fetchCart,
+        isFetching,
+        errorMessage,
+        clearError,
+      }}
+    >
       {children}
     </CartContext.Provider>
   );

@@ -20,6 +20,7 @@ export interface IOrder extends Document {
   payment_info: PaymentInfo;
   totalPrice: number;
   status: string; // Trạng thái đơn hàng
+  createdAt: Date;
 }
 
 const paymentInfoSchema = new Schema<PaymentInfo>({

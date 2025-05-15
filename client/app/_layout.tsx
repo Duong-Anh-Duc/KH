@@ -57,7 +57,14 @@ export default function RootLayout() {
 
   if (error) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 20 }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          padding: 20,
+        }}
+      >
         <Text style={{ fontSize: 16, color: "red", textAlign: "center" }}>
           Lỗi khi tải font: {error.message}
         </Text>
@@ -71,7 +78,7 @@ export default function RootLayout() {
         <CartProvider>
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
-            <Stack.Screen name="(routes)/welcome-intro/index" />
+            {/* <Stack.Screen name="(routes)/welcome-intro/index" /> */}
             <Stack.Screen name="(routes)/login/index" />
             <Stack.Screen name="(routes)/sign-up/index" />
             <Stack.Screen name="(routes)/forgot-password/index" />
@@ -88,9 +95,7 @@ export default function RootLayout() {
             <Stack.Screen
               name="(routes)/cart/index"
               options={{
-                headerShown: true,
-                title: "Giỏ Hàng",
-                headerBackTitle: "Quay Lại",
+                headerShown: false,
               }}
             />
             <Stack.Screen

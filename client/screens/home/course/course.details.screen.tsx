@@ -19,11 +19,22 @@ import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, Modal } from "react-native";
+import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  Modal,
+  RefreshControl,
+  SafeAreaView,
+} from "react-native";
 import { Toast } from "react-native-toast-notifications";
-import { Video, ResizeMode } from "expo-av"; // Thêm expo-av để phát video
+import { Video, ResizeMode } from "expo-av";
 
 interface User {
   _id: string;
@@ -102,6 +113,7 @@ interface CoursesType {
 }
 
 export default function CourseDetailScreen() {
+  const [refreshing, setRefreshing] = useState(false);
   const [activeButton, setActiveButton] = useState("Về Khóa Học");
   const { user, loading: userLoading, fetchUser } = useUser();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -110,10 +122,80 @@ export default function CourseDetailScreen() {
   const [checkPurchased, setCheckPurchased] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
-  const { addToCart, removeFromCart, cartItems, errorMessage, clearError } = useCart();
+  const { addToCart, removeFromCart, cartItems, errorMessage, clearError } =
+    useCart();
   const [isDemoModalVisible, setIsDemoModalVisible] = useState(false); // Trạng thái để hiển thị modal video demo
 
   const isCourseInCart = cartItems.some((item) => item.courseId === courseId);
+
+  // Kiểm tra trạng thái mua khóa học từ user context
+  const checkPurchaseStatus = useCallback(() => {
+    if (user && user.courses && courseId) {
+      console.log("=== Kiểm tra trạng thái mua khóa học ===");
+      console.log("CourseId cần kiểm tra:", courseId);
+      console.log(
+        "Danh sách khóa học của user:",
+        JSON.stringify(user.courses, null, 2)
+      );
+
+      const isPurchased = user.courses.some((course) => {
+        const isMatch = course.courseId === courseId;
+        console.log(
+          `So sánh: ${course.courseId} === ${courseId} -> ${isMatch}`
+        );
+        return isMatch;
+      });
+
+      console.log("Kết quả kiểm tra isPurchased:", isPurchased);
+      setCheckPurchased(isPurchased);
+    } else {
+      console.log("Thiếu dữ liệu để kiểm tra mua khóa học:", {
+        hasUser: !!user,
+        hasCourses: !!(user && user.courses),
+        courseId,
+      });
+      setCheckPurchased(false);
+    }
+  }, [user, courseId]);
+
+  // Thêm useEffect để tự động refresh khi component mount
+  useEffect(() => {
+    const initializeData = async () => {
+      console.log("Khởi tạo dữ liệu khóa học...");
+      await fetchUser(); // Lấy lại thông tin user mới nhất
+      checkPurchaseStatus();
+    };
+
+    initializeData();
+  }, []); // Chạy một lần khi component mount
+
+  // Sử dụng useFocusEffect để kiểm tra mỗi khi màn hình được focus
+  useFocusEffect(
+    useCallback(() => {
+      checkPurchaseStatus();
+    }, [checkPurchaseStatus])
+  );
+
+  // Kiểm tra khi user hoặc courseId thay đổi
+  useEffect(() => {
+    checkPurchaseStatus();
+  }, [user, courseId, checkPurchaseStatus]);
+
+  // Cập nhật lại onRefresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      console.log("Đang làm mới dữ liệu...");
+      await fetchUser(); // Lấy lại thông tin user mới nhất
+      await new Promise((resolve) => setTimeout(resolve, 500)); // Đợi 500ms để đảm bảo dữ liệu được cập nhật
+      checkPurchaseStatus();
+      console.log("Làm mới dữ liệu thành công");
+    } catch (error) {
+      console.error("Lỗi khi làm mới dữ liệu:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchUser, checkPurchaseStatus]);
 
   const fetchCourseData = async () => {
     try {
@@ -138,14 +220,19 @@ export default function CourseDetailScreen() {
       if (user) {
         const accessToken = await AsyncStorage.getItem("access_token");
         const refreshToken = await AsyncStorage.getItem("refresh_token");
-        const favoritesResponse = await axios.get(`${SERVER_URI}/get-favorite-courses`, {
-          headers: {
-            "access-token": accessToken,
-            "refresh-token": refreshToken,
-          },
-        });
+        const favoritesResponse = await axios.get(
+          `${SERVER_URI}/get-favorite-courses`,
+          {
+            headers: {
+              "access-token": accessToken,
+              "refresh-token": refreshToken,
+            },
+          }
+        );
         const favoriteCourses = favoritesResponse.data.courses || [];
-        setIsFavorite(favoriteCourses.some((course: CoursesType) => course._id === courseId));
+        setIsFavorite(
+          favoriteCourses.some((course: CoursesType) => course._id === courseId)
+        );
       }
     } catch (error: any) {
       console.error("Lỗi khi tải dữ liệu khóa học:", error);
@@ -157,16 +244,16 @@ export default function CourseDetailScreen() {
   };
 
   useEffect(() => {
-    fetchCourseData();
-  }, [courseId, user]);
-
-  useEffect(() => {
-    if (user && courseData && user.courses?.find((i: any) => i.courseId === courseData?._id)) {
-      setCheckPurchased(true);
-    } else {
-      setCheckPurchased(false);
-    }
-  }, [user, courseData]);
+    const loadInitialData = async () => {
+      setIsLoading(true);
+      try {
+        await Promise.all([fetchCourseData(), checkPurchaseStatus()]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadInitialData();
+  }, [courseId]);
 
   const handleAddToCart = async () => {
     if (!courseData) return;
@@ -207,11 +294,14 @@ export default function CourseDetailScreen() {
       clearError();
     } catch (error: any) {
       console.error("Lỗi khi xóa khỏi giỏ hàng:", error);
-      Toast.show(error.response?.data?.message || "Không thể xóa sản phẩm khỏi giỏ hàng", {
-        type: "danger",
-        placement: "top",
-        duration: 3000,
-      });
+      Toast.show(
+        error.response?.data?.message || "Không thể xóa sản phẩm khỏi giỏ hàng",
+        {
+          type: "danger",
+          placement: "top",
+          duration: 3000,
+        }
+      );
     }
   };
 
@@ -227,7 +317,9 @@ export default function CourseDetailScreen() {
       const refreshToken = await AsyncStorage.getItem("refresh_token");
 
       if (!accessToken || !refreshToken || !user) {
-        Toast.show("Vui lòng đăng nhập để truy cập khóa học", { type: "warning" });
+        Toast.show("Vui lòng đăng nhập để truy cập khóa học", {
+          type: "warning",
+        });
         router.push("/(routes)/login");
         return;
       }
@@ -246,12 +338,16 @@ export default function CourseDetailScreen() {
     } catch (error: any) {
       console.error("Lỗi khi truy cập khóa học:", error);
       if (error.response?.status === 401) {
-        Toast.show("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.", { type: "warning" });
+        Toast.show("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.", {
+          type: "warning",
+        });
         await AsyncStorage.removeItem("access_token");
         await AsyncStorage.removeItem("refresh_token");
         router.push("/(routes)/login");
       } else {
-        Toast.show("Bạn không có quyền truy cập khóa học này", { type: "danger" });
+        Toast.show("Bạn không có quyền truy cập khóa học này", {
+          type: "danger",
+        });
       }
     }
   };
@@ -271,7 +367,9 @@ export default function CourseDetailScreen() {
         return;
       }
 
-      const endpoint = isFavorite ? "/remove-from-favorites" : "/add-to-favorites";
+      const endpoint = isFavorite
+        ? "/remove-from-favorites"
+        : "/add-to-favorites";
       const response = await axios.post(
         `${SERVER_URI}${endpoint}`,
         { courseId },
@@ -285,7 +383,10 @@ export default function CourseDetailScreen() {
 
       setIsFavorite(!isFavorite);
       Toast.show(
-        response.data.message || (isFavorite ? "Đã xóa khỏi danh sách yêu thích" : "Đã thêm vào danh sách yêu thích thành công"),
+        response.data.message ||
+          (isFavorite
+            ? "Đã xóa khỏi danh sách yêu thích"
+            : "Đã thêm vào danh sách yêu thích thành công"),
         {
           type: "success",
           placement: "top",
@@ -306,6 +407,10 @@ export default function CourseDetailScreen() {
         }
       );
     }
+  };
+
+  const formatPrice = (price: number) => {
+    return price.toLocaleString("vi-VN");
   };
 
   let [fontsLoaded, fontError] = useFonts({
@@ -336,187 +441,238 @@ export default function CourseDetailScreen() {
 
   return (
     <LinearGradient colors={["#009990", "#F6F7F9"]} style={styles.container}>
-      {errorMessage && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{errorMessage}</Text>
-          <TouchableOpacity onPress={clearError} style={styles.clearErrorButton}>
-            <Ionicons name="close-circle" size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      )}
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.thumbnailContainer}>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>Bán Chạy Nhất</Text>
+      <SafeAreaView style={{ flex: 1 }}>
+        {errorMessage && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{errorMessage}</Text>
+            <TouchableOpacity
+              onPress={clearError}
+              style={styles.clearErrorButton}
+            >
+              <Ionicons name="close-circle" size={20} color="#fff" />
+            </TouchableOpacity>
           </View>
-          <View style={styles.ratingContainer}>
-            <FontAwesome name="star" size={14} color={"#FFB800"} />
-            <Text style={styles.ratingText}>{courseData?.ratings ?? 0}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.favoriteButton}
-            onPress={handleToggleFavorite}
-          >
-            <Ionicons
-              name={isFavorite ? "heart" : "heart-outline"}
-              size={24}
-              color={isFavorite ? "#FF6347" : "#000"}
+        )}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={["#009990"]}
+              tintColor="#009990"
             />
-          </TouchableOpacity>
-          <Image
-            source={{ uri: courseData?.thumbnail.url || "https://via.placeholder.com/230" }}
-            style={styles.thumbnail}
-          />
-          {courseData?.demoUrl && (
+          }
+        >
+          <View style={styles.thumbnailContainer}>
+            <View style={styles.ratingContainer}>
+              <FontAwesome name="star" size={14} color={"#FFB800"} />
+              <Text style={styles.ratingText}>{courseData?.ratings ?? 0}</Text>
+            </View>
             <TouchableOpacity
-              style={styles.demoButton}
-              onPress={() => setIsDemoModalVisible(true)}
+              style={styles.favoriteButton}
+              onPress={handleToggleFavorite}
             >
-              <Ionicons name="play-circle-outline" size={24} color="#fff" />
-              <Text style={styles.demoButtonText}>Xem demo</Text>
+              <Ionicons
+                name={isFavorite ? "heart" : "heart-outline"}
+                size={24}
+                color={isFavorite ? "#FF6347" : "#000"}
+              />
             </TouchableOpacity>
-          )}
-        </View>
-        <Text style={styles.courseTitle}>
-          {courseData?.name ?? "Khóa học không xác định"}
-        </Text>
-        <View style={styles.priceContainer}>
-          <View style={styles.priceWrapper}>
-            <Text style={styles.priceText}>
-              {courseData?.price?.toFixed(2) ?? "0"} VNĐ
-            </Text>
-            <Text style={styles.estimatedPriceText}>
-              {courseData?.estimatedPrice?.toFixed(2) ?? "0"} VNĐ
-            </Text>
-          </View>
-          <Text style={styles.purchasedText}>
-            {courseData?.purchased ?? 0} học viên
-          </Text>
-        </View>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Điều Kiện Tiên Quyết Của Khóa Học</Text>
-          {courseData?.prerequisites?.length > 0 ? (
-            courseData.prerequisites.map((item: PrerequisiteType, index: number) => (
-              <View key={index} style={styles.listItem}>
-                <Ionicons name="checkmark-done-outline" size={18} color="#2467EC" />
-                <Text style={styles.listItemText}>{item.title}</Text>
-              </View>
-            ))
-          ) : (
-            <Text style={styles.emptyText}>Không có điều kiện tiên quyết</Text>
-          )}
-        </View>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Lợi Ích Của Khóa Học</Text>
-          {courseData?.benefits?.length > 0 ? (
-            courseData.benefits.map((item: BenefitType, index: number) => (
-              <View key={index} style={styles.listItem}>
-                <Ionicons name="checkmark-done-outline" size={18} color="#2467EC" />
-                <Text style={styles.listItemText}>{item.title}</Text>
-              </View>
-            ))
-          ) : (
-            <Text style={styles.emptyText}>Không có lợi ích được liệt kê</Text>
-          )}
-        </View>
-        <View style={styles.tabContainer}>
-          {["Về Khóa Học", "Bài Giảng", "Đánh Giá"].map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              style={[styles.tabButton, activeButton === tab && styles.activeTabButton]}
-              onPress={() => setActiveButton(tab)}
-            >
-              <Text
-                style={[styles.tabButtonText, activeButton === tab && styles.activeTabButtonText]}
-              >
-                {tab}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        {activeButton === "Về Khóa Học" && (
-          <View style={styles.tabContent}>
-            <Text style={styles.sectionTitle}>Về khóa học</Text>
-            <Text style={styles.description}>
-              {isExpanded
-                ? courseData?.description || "Không có mô tả"
-                : courseData?.description.slice(0, 302) || "Không có mô tả"}
-            </Text>
-            {courseData?.description?.length > 302 && (
+            <Image
+              source={{
+                uri:
+                  courseData?.thumbnail.url ||
+                  "https://via.placeholder.com/230",
+              }}
+              style={styles.thumbnail}
+            />
+            {courseData?.demoUrl && (
               <TouchableOpacity
-                style={styles.expandButton}
-                onPress={() => setIsExpanded(!isExpanded)}
+                style={styles.demoButton}
+                onPress={() => setIsDemoModalVisible(true)}
               >
-                <Text style={styles.expandButtonText}>
-                  {isExpanded ? "Thu gọn" : "Xem thêm"}
-                  {isExpanded ? " -" : " +"}
-                </Text>
+                <Ionicons name="play-circle-outline" size={24} color="#fff" />
+                <Text style={styles.demoButtonText}>Xem demo</Text>
               </TouchableOpacity>
             )}
           </View>
-        )}
-        {activeButton === "Bài Giảng" && (
-          <View style={styles.tabContent}>
-            <CourseLesson courseDetails={courseData} />
-          </View>
-        )}
-        {activeButton === "Đánh Giá" && (
-          <View style={styles.tabContent}>
-            <View style={styles.reviewsContainer}>
-              {courseData?.reviews?.length > 0 ? (
-                courseData.reviews.map((item: ReviewType, index: number) => (
-                  <ReviewCard key={item.user._id + index.toString()} item={item} />
-                ))
-              ) : (
-                <Text style={styles.emptyText}>Chưa có đánh giá nào</Text>
+          <Text style={styles.courseTitle}>
+            {courseData?.name ?? "Khóa học không xác định"}
+          </Text>
+          <View style={styles.priceContainer}>
+            <View style={styles.priceWrapper}>
+              <Text style={styles.priceText}>
+                {formatPrice(courseData?.price || 0)} VNĐ
+              </Text>
+              {courseData?.estimatedPrice && courseData.estimatedPrice > 0 && (
+                <Text style={styles.estimatedPriceText}>
+                  {formatPrice(courseData.estimatedPrice)} VNĐ
+                </Text>
               )}
             </View>
-          </View>
-        )}
-      </ScrollView>
-      <View style={styles.footer}>
-        {checkPurchased ? (
-          <TouchableOpacity style={styles.accessButton} onPress={handleAccessCourse}>
-            <Text style={styles.accessButtonText}>Truy cập khóa học</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={[styles.cartButton, isCourseInCart && styles.removeCartButton]}
-            onPress={isCourseInCart ? handleRemoveFromCart : handleAddToCart}
-          >
-            <Text style={styles.cartButtonText}>
-              {isCourseInCart ? "Xóa khỏi giỏ hàng" : "Thêm vào giỏ hàng"}
+            <Text style={styles.purchasedText}>
+              {courseData?.purchased ?? 0} học viên
             </Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Modal để hiển thị video demo */}
-      <Modal
-        visible={isDemoModalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setIsDemoModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Video Demo</Text>
-            <Video
-              source={{ uri: courseData?.demoUrl }}
-              style={styles.demoVideo}
-              useNativeControls
-              resizeMode={ResizeMode.CONTAIN}
-              shouldPlay={false}
-            />
-            <TouchableOpacity
-              style={styles.closeModalButton}
-              onPress={() => setIsDemoModalVisible(false)}
-            >
-              <Text style={styles.closeModalButtonText}>Đóng</Text>
-            </TouchableOpacity>
           </View>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              Điều Kiện Tiên Quyết Của Khóa Học
+            </Text>
+            {courseData?.prerequisites?.length > 0 ? (
+              courseData.prerequisites.map(
+                (item: PrerequisiteType, index: number) => (
+                  <View key={index} style={styles.listItem}>
+                    <Ionicons
+                      name="checkmark-done-outline"
+                      size={18}
+                      color="#2467EC"
+                    />
+                    <Text style={styles.listItemText}>{item.title}</Text>
+                  </View>
+                )
+              )
+            ) : (
+              <Text style={styles.emptyText}>
+                Không có điều kiện tiên quyết
+              </Text>
+            )}
+          </View>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Lợi Ích Của Khóa Học</Text>
+            {courseData?.benefits?.length > 0 ? (
+              courseData.benefits.map((item: BenefitType, index: number) => (
+                <View key={index} style={styles.listItem}>
+                  <Ionicons
+                    name="checkmark-done-outline"
+                    size={18}
+                    color="#2467EC"
+                  />
+                  <Text style={styles.listItemText}>{item.title}</Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.emptyText}>
+                Không có lợi ích được liệt kê
+              </Text>
+            )}
+          </View>
+          <View style={styles.tabContainer}>
+            {["Về Khóa Học", "Bài Giảng", "Đánh Giá"].map((tab, index) => (
+              <TouchableOpacity
+                key={tab}
+                style={[
+                  styles.tabButton,
+                  activeButton === tab && styles.activeTabButton,
+                  index === 0 && styles.firstTab,
+                  index === 2 && styles.lastTab,
+                ]}
+                onPress={() => setActiveButton(tab)}
+              >
+                <Text
+                  style={[
+                    styles.tabButtonText,
+                    activeButton === tab && styles.activeTabButtonText,
+                  ]}
+                >
+                  {tab}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {activeButton === "Về Khóa Học" && (
+            <View style={styles.tabContent}>
+              <Text style={styles.sectionTitle}>Về khóa học</Text>
+              <Text style={styles.description}>
+                {isExpanded
+                  ? courseData?.description || "Không có mô tả"
+                  : courseData?.description.slice(0, 302) || "Không có mô tả"}
+              </Text>
+              {courseData?.description?.length > 302 && (
+                <TouchableOpacity
+                  style={styles.expandButton}
+                  onPress={() => setIsExpanded(!isExpanded)}
+                >
+                  <Text style={styles.expandButtonText}>
+                    {isExpanded ? "Thu gọn" : "Xem thêm"}
+                    {isExpanded ? " -" : " +"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+          {activeButton === "Bài Giảng" && (
+            <View style={styles.tabContent}>
+              <CourseLesson courseDetails={courseData} />
+            </View>
+          )}
+          {activeButton === "Đánh Giá" && (
+            <View style={styles.tabContent}>
+              <View style={styles.reviewsContainer}>
+                {courseData?.reviews?.length > 0 ? (
+                  courseData.reviews.map((item: ReviewType, index: number) => (
+                    <ReviewCard
+                      key={item.user._id + index.toString()}
+                      item={item}
+                    />
+                  ))
+                ) : (
+                  <Text style={styles.emptyText}>Chưa có đánh giá nào</Text>
+                )}
+              </View>
+            </View>
+          )}
+        </ScrollView>
+        <View style={styles.footer}>
+          {checkPurchased ? (
+            <TouchableOpacity
+              style={styles.accessButton}
+              onPress={handleAccessCourse}
+            >
+              <Text style={styles.accessButtonText}>Truy cập khóa học</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[
+                styles.cartButton,
+                isCourseInCart && styles.removeCartButton,
+              ]}
+              onPress={isCourseInCart ? handleRemoveFromCart : handleAddToCart}
+            >
+              <Text style={styles.cartButtonText}>
+                {isCourseInCart ? "Xóa khỏi giỏ hàng" : "Thêm vào giỏ hàng"}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
-      </Modal>
+
+        {/* Modal để hiển thị video demo */}
+        <Modal
+          visible={isDemoModalVisible}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setIsDemoModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Video Demo</Text>
+              <Video
+                source={{ uri: courseData?.demoUrl }}
+                style={styles.demoVideo}
+                useNativeControls
+                resizeMode={ResizeMode.CONTAIN}
+                shouldPlay={false}
+              />
+              <TouchableOpacity
+                style={styles.closeModalButton}
+                onPress={() => setIsDemoModalVisible(false)}
+              >
+                <Text style={styles.closeModalButtonText}>Đóng</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </SafeAreaView>
     </LinearGradient>
   );
 }
@@ -692,18 +848,24 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: "row",
-    justifyContent: "center",
+    justifyContent: "space-between",
     marginHorizontal: 15,
     backgroundColor: "#E1E9F8",
     borderRadius: 25,
-    paddingVertical: 10,
+    padding: 5,
     marginVertical: 15,
   },
   tabButton: {
+    flex: 1,
     paddingVertical: 10,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    marginHorizontal: 5,
+    alignItems: "center",
+    borderRadius: 20,
+  },
+  firstTab: {
+    marginRight: 2,
+  },
+  lastTab: {
+    marginLeft: 2,
   },
   activeTabButton: {
     backgroundColor: "#2467EC",
@@ -711,7 +873,8 @@ const styles = StyleSheet.create({
   tabButtonText: {
     color: "#333",
     fontFamily: "Nunito_600SemiBold",
-    fontSize: 16,
+    fontSize: 14,
+    textAlign: "center",
   },
   activeTabButtonText: {
     color: "#fff",
@@ -764,16 +927,10 @@ const styles = StyleSheet.create({
     fontFamily: "Nunito_500Medium",
   },
   footer: {
-    backgroundColor: "#fff",
     marginHorizontal: 15,
     paddingVertical: 15,
     marginBottom: 10,
     borderRadius: 12,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
   },
   accessButton: {
     backgroundColor: "#009990",
@@ -781,11 +938,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     width: "100%",
     alignItems: "center",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
   },
   cartButton: {
     backgroundColor: "#009990",

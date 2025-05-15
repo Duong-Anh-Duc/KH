@@ -1,4 +1,5 @@
 import { useCart } from "@/context/CartContext";
+import { useUser } from "@/context/UserContext";
 import { SERVER_URI } from "@/utils/uri";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -31,6 +32,13 @@ type CartItemType = {
   quantity?: number;
 };
 
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(amount);
+};
+
 export default function CartScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
@@ -41,13 +49,21 @@ export default function CartScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { cartItems, removeFromCart, clearCart, fetchCart } = useCart();
+  const { user } = useUser();
+
+  console.log("user", user);
 
   const fetchEnrolledCourses = async () => {
     try {
       console.log("Bắt đầu lấy danh sách khóa học đã đăng ký...");
-      const cachedEnrolledCourses = await AsyncStorage.getItem("enrolledCourses");
+      const cachedEnrolledCourses = await AsyncStorage.getItem(
+        "enrolledCourses"
+      );
       if (cachedEnrolledCourses) {
-        console.log("Danh sách khóa học đã đăng ký được lấy từ cache:", cachedEnrolledCourses);
+        console.log(
+          "Danh sách khóa học đã đăng ký được lấy từ cache:",
+          cachedEnrolledCourses
+        );
         setEnrolledCourses(JSON.parse(cachedEnrolledCourses));
         return;
       }
@@ -59,7 +75,9 @@ export default function CartScreen() {
       console.log("Refresh Token:", refreshToken);
 
       if (!accessToken || !refreshToken) {
-        console.log("Không có access_token hoặc refresh_token, bỏ qua fetchEnrolledCourses.");
+        console.log(
+          "Không có access_token hoặc refresh_token, bỏ qua fetchEnrolledCourses."
+        );
         return;
       }
 
@@ -72,17 +90,24 @@ export default function CartScreen() {
 
       console.log("Phản hồi từ API user-courses:", response.data);
 
-      const courses = response.data.courses.map((course: any) => course.courseId);
+      const courses = response.data.courses.map(
+        (course: any) => course.courseId
+      );
       setEnrolledCourses(courses);
       await AsyncStorage.setItem("enrolledCourses", JSON.stringify(courses));
-      console.log("Đã lưu danh sách khóa học đã đăng ký vào AsyncStorage:", courses);
+      console.log(
+        "Đã lưu danh sách khóa học đã đăng ký vào AsyncStorage:",
+        courses
+      );
     } catch (error: any) {
       console.error("Lỗi khi lấy danh sách khóa học đã đăng ký:", {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
       });
-      Toast.show("Không thể lấy danh sách khóa học đã đăng ký", { type: "danger" });
+      Toast.show("Không thể lấy danh sách khóa học đã đăng ký", {
+        type: "danger",
+      });
     }
   };
 
@@ -175,17 +200,22 @@ export default function CartScreen() {
 
       if (!accessToken || !refreshToken) {
         console.log("Không có token, chuyển hướng đến màn hình đăng nhập.");
-        Toast.show("Vui lòng đăng nhập để truy cập khóa học", { type: "warning" });
+        Toast.show("Vui lòng đăng nhập để truy cập khóa học", {
+          type: "warning",
+        });
         router.push("/(routes)/login");
         return;
       }
 
-      const response = await axios.get(`${SERVER_URI}/get-course-content/${courseId}`, {
-        headers: {
-          "access-token": accessToken,
-          "refresh-token": refreshToken,
-        },
-      });
+      const response = await axios.get(
+        `${SERVER_URI}/get-course-content/${courseId}`,
+        {
+          headers: {
+            "access-token": accessToken,
+            "refresh-token": refreshToken,
+          },
+        }
+      );
 
       console.log("Phản hồi từ API get-course-content:", response.data);
 
@@ -228,7 +258,10 @@ export default function CartScreen() {
       });
       return;
     }
-    console.log("Danh sách khóa học được chọn để thanh toán:", selectedCourseIds);
+    console.log(
+      "Danh sách khóa học được chọn để thanh toán:",
+      selectedCourseIds
+    );
     setIsModalVisible(true);
   };
 
@@ -265,7 +298,8 @@ export default function CartScreen() {
       );
       console.log("Phản hồi từ API /payment:", paymentIntentResponse.data);
 
-      const { client_secret: clientSecret, paymentIntentId } = paymentIntentResponse.data;
+      const { client_secret: clientSecret, paymentIntentId } =
+        paymentIntentResponse.data;
 
       console.log("Khởi tạo PaymentSheet với clientSecret:", clientSecret);
       const initSheetResponse = await initPaymentSheet({
@@ -281,7 +315,10 @@ export default function CartScreen() {
           code: initSheetResponse.error.code,
           localizedMessage: initSheetResponse.error.localizedMessage,
         });
-        Toast.show(`Lỗi khởi tạo thanh toán: ${initSheetResponse.error.message}`, { type: "danger" });
+        Toast.show(
+          `Lỗi khởi tạo thanh toán: ${initSheetResponse.error.message}`,
+          { type: "danger" }
+        );
         return;
       }
 
@@ -295,7 +332,9 @@ export default function CartScreen() {
           code: paymentResponse.error.code,
           localizedMessage: paymentResponse.error.localizedMessage,
         });
-        Toast.show(`Thanh toán thất bại: ${paymentResponse.error.message}`, { type: "danger" });
+        Toast.show(`Thanh toán thất bại: ${paymentResponse.error.message}`, {
+          type: "danger",
+        });
       } else {
         console.log("Thanh toán thành công, lấy chi tiết PaymentIntent...");
         const paymentIntentDetailsResponse = await axios.get(
@@ -307,7 +346,10 @@ export default function CartScreen() {
             },
           }
         );
-        console.log("Chi tiết PaymentIntent:", paymentIntentDetailsResponse.data);
+        console.log(
+          "Chi tiết PaymentIntent:",
+          paymentIntentDetailsResponse.data
+        );
 
         console.log("Tạo đơn hàng...");
         await createOrder(paymentResponse, paymentIntentDetailsResponse.data);
@@ -319,14 +361,19 @@ export default function CartScreen() {
         status: error.response?.status,
         config: error.config,
       });
-      Toast.show(error.response?.data?.message || "Lỗi khi xử lý thanh toán", { type: "danger" });
+      Toast.show(error.response?.data?.message || "Lỗi khi xử lý thanh toán", {
+        type: "danger",
+      });
     } finally {
       setIsLoading(false);
       console.log("Hoàn tất xử lý thanh toán.");
     }
   };
 
-  const createOrder = async (paymentResponse: any, paymentIntentDetails: any) => {
+  const createOrder = async (
+    paymentResponse: any,
+    paymentIntentDetails: any
+  ) => {
     try {
       setIsLoading(true);
       console.log("Bắt đầu tạo đơn hàng...");
@@ -336,9 +383,12 @@ export default function CartScreen() {
 
       console.log("Access Token:", accessToken);
       console.log("Refresh Token:", refreshToken);
+      console.log("User ID từ context:", user?._id);
 
-      if (!accessToken || !refreshToken) {
-        console.log("Không có token, chuyển hướng đến màn hình đăng nhập.");
+      if (!accessToken || !refreshToken || !user?._id) {
+        console.log(
+          "Không có token hoặc userId, chuyển hướng đến màn hình đăng nhập."
+        );
         Toast.show("Vui lòng đăng nhập để tạo đơn hàng", { type: "warning" });
         router.push("/(routes)/login");
         return;
@@ -346,6 +396,7 @@ export default function CartScreen() {
 
       console.log("Dữ liệu gửi lên API /create-mobile-order:", {
         selectedCourseIds,
+        userId: user._id, // Lấy userId từ context
         payment_info: {
           ...paymentResponse,
           paymentIntent: paymentIntentDetails,
@@ -356,6 +407,7 @@ export default function CartScreen() {
         `${SERVER_URI}/create-mobile-order`,
         {
           selectedCourseIds,
+          userId: user._id, // Lấy userId từ context
           payment_info: {
             ...paymentResponse,
             paymentIntent: paymentIntentDetails,
@@ -383,13 +435,14 @@ export default function CartScreen() {
         status: error.response?.status,
         config: error.config,
       });
-      Toast.show(error.response?.data?.message || "Lỗi khi tạo đơn hàng", { type: "danger" });
+      Toast.show(error.response?.data?.message || "Lỗi khi tạo đơn hàng", {
+        type: "danger",
+      });
     } finally {
       setIsLoading(false);
       console.log("Hoàn tất tạo đơn hàng.");
     }
   };
-
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -403,13 +456,14 @@ export default function CartScreen() {
     <LinearGradient colors={["#009990", "#F6F7F9"]} style={styles.container}>
       {orderSuccess ? (
         <View style={styles.successContainer}>
-          <Ionicons name="checkmark-circle" size={80} color="#009990" style={styles.successIcon} />
-          <Text style={styles.successTitle}>
-            Thanh Toán Thành Công!
-          </Text>
-          <Text style={styles.successText}>
-            Cảm ơn bạn đã mua hàng!
-          </Text>
+          <Ionicons
+            name="checkmark-circle"
+            size={80}
+            color="#009990"
+            style={styles.successIcon}
+          />
+          <Text style={styles.successTitle}>Thanh Toán Thành Công!</Text>
+          <Text style={styles.successText}>Cảm ơn bạn đã mua hàng!</Text>
           <View style={styles.orderDetails}>
             <Text style={styles.orderText}>
               Mã đơn hàng: {orderDetails?._id?.slice(0, 6) ?? "N/A"}
@@ -427,12 +481,15 @@ export default function CartScreen() {
               Người mua: {orderDetails?.userName ?? "N/A"}
             </Text>
             <Text style={styles.orderText}>
-              Phương thức thanh toán: {orderDetails?.payment_info?.paymentMethod ?? "N/A"}
+              Phương thức thanh toán:{" "}
+              {orderDetails?.payment_info?.paymentMethod ?? "N/A"}
             </Text>
             <Text style={styles.orderText}>
               Thời gian thanh toán:{" "}
               {orderDetails?.payment_info?.created
-                ? new Date(orderDetails.payment_info.created * 1000).toLocaleString()
+                ? new Date(
+                    orderDetails.payment_info.created * 1000
+                  ).toLocaleString()
                 : "N/A"}
             </Text>
             <Text style={styles.orderText}>
@@ -488,7 +545,10 @@ export default function CartScreen() {
                   onPress={() => handleCourseDetails(item)}
                 >
                   <Image
-                    source={{ uri: item.thumbnail?.url || "https://via.placeholder.com/80" }}
+                    source={{
+                      uri:
+                        item.thumbnail?.url || "https://via.placeholder.com/80",
+                    }}
                     style={styles.courseImage}
                   />
                 </TouchableOpacity>
@@ -497,15 +557,21 @@ export default function CartScreen() {
                     <Text style={styles.courseName}>{item.courseName}</Text>
                   </TouchableOpacity>
                   <Text style={styles.coursePrice}>
-                    {(item.priceAtPurchase).toFixed(2)} VNĐ
+                    {formatCurrency(item.priceAtPurchase)}
                   </Text>
                   {enrolledCourses.includes(item.courseId) ? (
                     <TouchableOpacity
                       style={styles.accessButton}
                       onPress={() => handleAccessCourse(item.courseId)}
                     >
-                      <MaterialIcons name="play-circle-outline" size={20} color="#fff" />
-                      <Text style={styles.accessButtonText}>Truy cập khóa học</Text>
+                      <MaterialIcons
+                        name="play-circle-outline"
+                        size={20}
+                        color="#fff"
+                      />
+                      <Text style={styles.accessButtonText}>
+                        Truy cập khóa học
+                      </Text>
                     </TouchableOpacity>
                   ) : (
                     <TouchableOpacity
@@ -521,7 +587,12 @@ export default function CartScreen() {
             )}
             ListEmptyComponent={() => (
               <View style={styles.emptyContainer}>
-                <Ionicons name="cart-outline" size={80} color="#575757" style={styles.emptyIcon} />
+                <Ionicons
+                  name="cart-outline"
+                  size={80}
+                  color="#575757"
+                  style={styles.emptyIcon}
+                />
                 <Text style={styles.emptyText}>
                   Giỏ Hàng Của Bạn Đang Trống!
                 </Text>
@@ -549,7 +620,7 @@ export default function CartScreen() {
           {cartItems.length > 0 && (
             <View style={styles.footer}>
               <Text style={styles.totalText}>
-                Tổng Cộng: {calculateTotalPrice()} VNĐ
+                Tổng Cộng: {formatCurrency(Number(calculateTotalPrice()))}
               </Text>
               <TouchableOpacity
                 style={[
@@ -584,20 +655,24 @@ export default function CartScreen() {
                   Bạn có chắc chắn muốn thanh toán không?
                 </Text>
                 <FlatList
-                  data={cartItems.filter((item) => selectedCourseIds.includes(item.courseId))}
+                  data={cartItems.filter((item) =>
+                    selectedCourseIds.includes(item.courseId)
+                  )}
                   keyExtractor={(item) => item.courseId}
                   renderItem={({ item }) => (
                     <View style={styles.modalCourseItem}>
-                      <Text style={styles.modalCourseName}>{item.courseName}</Text>
+                      <Text style={styles.modalCourseName}>
+                        {item.courseName}
+                      </Text>
                       <Text style={styles.modalCoursePrice}>
-                        {(item.priceAtPurchase).toFixed(2)} VNĐ
+                        {formatCurrency(item.priceAtPurchase)}
                       </Text>
                     </View>
                   )}
                   style={styles.modalCourseList}
                 />
                 <Text style={styles.modalTotal}>
-                  Tổng Cộng: {calculateTotalPrice()} VNĐ
+                  Tổng Cộng: {formatCurrency(Number(calculateTotalPrice()))}
                 </Text>
                 <View style={styles.modalButtons}>
                   <TouchableOpacity
@@ -641,7 +716,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 16,
+    paddingHorizontal: 16,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#E1E2E5",
@@ -650,9 +725,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    paddingTop: 45,
+    paddingBottom: 10,
   },
   headerText: {
-    fontSize: 24,
+    fontSize: 20,
     fontFamily: "Raleway_700Bold",
     color: "#333",
   },
