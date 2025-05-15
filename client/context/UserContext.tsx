@@ -91,7 +91,42 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       });
 
       setUser(response.data.user);
-      await fetchNotifications();
+
+      // Fetch notifications immediately after setting user
+      if (response.data.user) {
+        try {
+          const notificationResponse = await axios.get(
+            `${SERVER_URI}/get-notifications`,
+            {
+              headers: {
+                "access-token": accessToken,
+                "refresh-token": refreshToken,
+              },
+            }
+          );
+
+          if (notificationResponse.data.success) {
+            const dbNotifications: INotification[] =
+              notificationResponse.data.notifications || [];
+            const formattedNotifications = dbNotifications.map(
+              (notification) => ({
+                id: notification._id,
+                message: notification.message,
+                type: notification.status,
+                status: notification.status,
+                courseId: notification.courseId,
+                price: notification.price,
+              })
+            );
+
+            setNotifications(formattedNotifications);
+          }
+        } catch (error: any) {
+          if (error.response?.status !== 404) {
+            console.error("Error fetching initial notifications:", error);
+          }
+        }
+      }
     } catch (error: any) {
       console.error("Error fetching user:", error);
       if (error.response?.status === 401) {
@@ -122,7 +157,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           });
 
           setUser(retryResponse.data.user);
-          await fetchNotifications();
+          await fetchNotifications(); // Fetch notifications after token refresh
         } catch (refreshError: any) {
           console.error("Error refreshing token:", refreshError);
           Toast.show("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.", {
@@ -132,6 +167,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
             animationType: "zoom-in",
           });
           setUser(null);
+          setNotifications([]); // Clear notifications when session expires
         }
       } else {
         Toast.show(
@@ -208,73 +244,60 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       const refreshToken = await AsyncStorage.getItem("refresh_token");
 
       if (accessToken && refreshToken && user?._id) {
-        connectSocket(accessToken, refreshToken, user._id);
+        try {
+          await connectSocket(accessToken, refreshToken, user._id);
 
-        socket.on("connect", () => {
-          console.log("Connected to WebSocket server");
-        });
+          const handleNotification = async (data: any, type: string) => {
+            console.log(`Received ${type} event:`, data);
+            if (data.message) {
+              addNotification(data.message, type);
+              Toast.show(data.message, {
+                type: type === "orderSuccess" ? "success" : "info",
+                placement: "top",
+                duration: 4000,
+                animationType: "zoom-in",
+              });
+              await fetchNotifications();
+            }
+          };
 
-        socket.on("connect_error", (error) => {
-          console.error("Socket connection error:", error);
-        });
+          socket.on("orderSuccess", (data) =>
+            handleNotification(data, "orderSuccess")
+          );
+          socket.on("newCourse", (data) =>
+            handleNotification(data, "newCourse")
+          );
+          socket.on("newLesson", (data) =>
+            handleNotification(data, "newLesson")
+          );
+          socket.on("courseUpdated", (data) =>
+            handleNotification(data, "courseUpdated")
+          );
+          socket.on("newQuestionReply", (data) =>
+            handleNotification(data, "newQuestionReply")
+          );
+          socket.on("userUpdated", (data) => {
+            console.log("Received userUpdated event:", data);
+            if (data.user) {
+              setUser(data.user);
+            }
+            handleNotification(data, "userUpdated");
+          });
 
-        socket.on("orderSuccess", (data: { message: string; order: any }) => {
-          console.log("Received orderSuccess event:", data);
-          addNotification(data.message, "orderSuccess");
-          Toast.show(data.message, { type: "success" });
-          fetchNotifications(); // Cập nhật lại thông báo từ database
-        });
-
-        socket.on("newCourse", (data: { message: string; course: any }) => {
-          console.log("Received newCourse event:", data);
-          addNotification(data.message, "newCourse");
-          Toast.show(data.message, { type: "info" });
-          fetchNotifications();
-        });
-
-        socket.on(
-          "newLesson",
-          (data: { message: string; courseId: string; lesson: any }) => {
-            console.log("Received newLesson event:", data);
-            addNotification(data.message, "newLesson");
-            Toast.show(data.message, { type: "info" });
-            fetchNotifications();
-          }
-        );
-
-        socket.on("courseUpdated", (data: { message: string; course: any }) => {
-          console.log("Received courseUpdated event:", data);
-          addNotification(data.message, "courseUpdated");
-          Toast.show(data.message, { type: "info" });
-          fetchNotifications();
-        });
-
-        socket.on(
-          "newQuestionReply",
-          (data: {
-            message: string;
-            courseId: string;
-            contentId: string;
-            questionId: string;
-          }) => {
-            console.log("Received newQuestionReply event:", data);
-            addNotification(data.message, "newQuestionReply");
-            Toast.show(data.message, { type: "info" });
-            fetchNotifications();
-          }
-        );
-
-        socket.on("userUpdated", (data: { message: string; user: IUser }) => {
-          console.log("Received userUpdated event:", data);
-          setUser(data.user);
-          addNotification(data.message, "userUpdated");
-          Toast.show(data.message, { type: "success" });
-          fetchNotifications();
-        });
-
-        socket.on("disconnect", () => {
-          console.log("Disconnected from WebSocket server");
-        });
+          // Add reconnection handling
+          socket.on("reconnect", async () => {
+            console.log("Socket reconnected - refetching notifications");
+            await fetchNotifications();
+          });
+        } catch (error) {
+          console.error("Error initializing socket:", error);
+          Toast.show("Không thể kết nối đến máy chủ thông báo", {
+            type: "error",
+            placement: "top",
+            duration: 4000,
+            animationType: "zoom-in",
+          });
+        }
       }
     };
 
@@ -283,16 +306,16 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }
 
     return () => {
-      disconnectSocket();
-      socket.off("connect");
-      socket.off("connect_error");
-      socket.off("orderSuccess");
-      socket.off("newCourse");
-      socket.off("newLesson");
-      socket.off("courseUpdated");
-      socket.off("newQuestionReply");
-      socket.off("userUpdated");
-      socket.off("disconnect");
+      if (socket.connected) {
+        socket.off("orderSuccess");
+        socket.off("newCourse");
+        socket.off("newLesson");
+        socket.off("courseUpdated");
+        socket.off("newQuestionReply");
+        socket.off("userUpdated");
+        socket.off("reconnect");
+        disconnectSocket();
+      }
     };
   }, [user?._id]);
 

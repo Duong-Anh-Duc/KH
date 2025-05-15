@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
   Animated,
+  ActivityIndicator,
 } from "react-native";
 
 interface NotificationItem {
@@ -35,6 +36,7 @@ const formatPrice = (price?: number) => {
 
 const NotificationIcon = () => {
   const { notifications: rawNotifications, clearNotifications } = useUser();
+  const [isLoading, setIsLoading] = useState(false);
   const notifications: NotificationItem[] = rawNotifications.map((item) => ({
     ...item,
     status: item.status as "read" | "unread",
@@ -59,6 +61,7 @@ const NotificationIcon = () => {
 
   const handleNotificationPress = async (notification: NotificationItem) => {
     try {
+      setIsLoading(true);
       // Cập nhật trạng thái đã đọc
       const accessToken = await AsyncStorage.getItem("access_token");
       const refreshToken = await AsyncStorage.getItem("refresh_token");
@@ -86,6 +89,8 @@ const NotificationIcon = () => {
       }
     } catch (error) {
       console.error("Lỗi khi cập nhật trạng thái thông báo:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -96,6 +101,7 @@ const NotificationIcon = () => {
         item.status === "unread" && styles.unreadNotification,
       ]}
       onPress={() => handleNotificationPress(item)}
+      disabled={isLoading}
     >
       <View style={styles.notificationHeader}>
         <MaterialIcons
@@ -178,19 +184,27 @@ const NotificationIcon = () => {
           >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Thông Báo</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                disabled={isLoading}
+              >
                 <Ionicons name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
 
-            {notifications.length === 0 ? (
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#009990" />
+                <Text style={styles.loadingText}>Đang tải...</Text>
+              </View>
+            ) : notifications.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Ionicons
                   name="notifications-off-outline"
                   size={50}
                   color="#575757"
                 />
-                <Text style={styles.emptyText}>Không có thông báo nào</Text>
+                <Text style={styles.emptyText}>Chưa có thông báo nào</Text>
               </View>
             ) : (
               <FlatList
@@ -202,7 +216,7 @@ const NotificationIcon = () => {
               />
             )}
 
-            {notifications.length > 0 && (
+            {notifications.length > 0 && !isLoading && (
               <View style={styles.modalFooter}>
                 <TouchableOpacity
                   style={styles.clearButton}
@@ -373,6 +387,18 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 0,
     top: 0,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    fontFamily: "Nunito_600SemiBold",
+    color: "#575757",
   },
 });
 
