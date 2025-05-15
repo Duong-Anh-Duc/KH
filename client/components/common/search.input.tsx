@@ -1,4 +1,3 @@
-// frontend/components/search/SearchInput.tsx
 import { CategoryType, CoursesType } from "@/types/courses";
 import { SERVER_URI } from "@/utils/uri";
 import { Nunito_700Bold, useFonts } from "@expo-google-fonts/nunito";
@@ -10,12 +9,12 @@ import {
   FlatList,
   Image,
   Modal,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  RefreshControl,
 } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
 import { widthPercentageToDP } from "react-native-responsive-screen";
@@ -111,7 +110,6 @@ export default function SearchInput({
     }
   }, [value, courses, homeScreen]);
 
-  // Cập nhật kết quả khi bộ lọc thay đổi
   useEffect(() => {
     const applyFilters = async () => {
       try {
@@ -148,7 +146,7 @@ export default function SearchInput({
     };
 
     applyFilters();
-  }, [selectedCategory, sortOrder]); // Lắng nghe thay đổi của selectedCategory và sortOrder
+  }, [selectedCategory, sortOrder]);
 
   const handleSearch = async () => {
     try {
@@ -245,7 +243,7 @@ export default function SearchInput({
   );
 
   return (
-    <View>
+    <View style={styles.container}>
       <View style={styles.filteringContainer}>
         <View
           style={[
@@ -278,12 +276,13 @@ export default function SearchInput({
       </View>
 
       {suggestions.length > 0 && (
-        <View style={{ flex: 1, paddingHorizontal: 10 }}>
+        <View style={styles.suggestionWrapper}>
           <FlatList
             data={suggestions}
             keyExtractor={(item: CoursesType) => item._id}
             renderItem={renderSuggestionItem}
             style={styles.suggestionList}
+            showsVerticalScrollIndicator={true}
           />
         </View>
       )}
@@ -298,8 +297,6 @@ export default function SearchInput({
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>Bộ Lọc</Text>
-
-            {/* Dropdown chọn danh mục */}
             <View style={[styles.pickerContainer, { zIndex: 1000 }]}>
               <DropDownPicker
                 open={openCategory}
@@ -316,8 +313,6 @@ export default function SearchInput({
                 placeholderStyle={styles.dropdownPlaceholder}
               />
             </View>
-
-            {/* Dropdown chọn sắp xếp theo giá */}
             <View style={[styles.pickerContainer, { zIndex: 900 }]}>
               <DropDownPicker
                 open={openSort}
@@ -334,7 +329,6 @@ export default function SearchInput({
                 placeholderStyle={styles.dropdownPlaceholder}
               />
             </View>
-
             <TouchableOpacity
               style={styles.closeButton}
               onPress={() => setIsFilterModalVisible(false)}
@@ -345,7 +339,7 @@ export default function SearchInput({
         </View>
       </Modal>
 
-      <View style={{ flex: 1, paddingHorizontal: 10 }}>
+      <View style={styles.listWrapper}>
         <FlatList
           data={filteredCourses}
           keyExtractor={(item: CoursesType) => item._id}
@@ -362,25 +356,22 @@ export default function SearchInput({
               tintColor="#009990"
             />
           }
+          showsVerticalScrollIndicator={true}
+          contentContainerStyle={{ paddingBottom: 20 }}
         />
       </View>
+
       {!homeScreen && filteredCourses?.length === 0 && value.trim() !== "" && (
-        <Text
-          style={{
-            textAlign: "center",
-            paddingTop: 50,
-            fontSize: 20,
-            fontWeight: "600",
-          }}
-        >
-          Không có dữ liệu để hiển thị!
-        </Text>
+        <Text style={styles.noDataText}>Không có dữ liệu để hiển thị!</Text>
       )}
     </View>
   );
 }
 
 export const styles = StyleSheet.create({
+  container: {
+    flex: 1, // Đảm bảo SearchInput chiếm toàn bộ không gian của màn hình cha
+  },
   filteringContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -418,16 +409,30 @@ export const styles = StyleSheet.create({
     paddingVertical: 10,
     height: 48,
   },
+  suggestionWrapper: {
+    flex: 0, // Đảm bảo suggestion list không chiếm toàn bộ không gian
+    maxHeight: 200, // Giới hạn chiều cao của suggestion list
+    paddingHorizontal: 10,
+  },
   suggestionList: {
     backgroundColor: "#fff",
     borderRadius: 8,
     marginHorizontal: 16,
-    maxHeight: 200,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+  },
+  listWrapper: {
+    flex: 1, // Đảm bảo FlatList chính chiếm phần còn lại của không gian
+    paddingHorizontal: 10,
+  },
+  noDataText: {
+    textAlign: "center",
+    paddingTop: 50,
+    fontSize: 20,
+    fontWeight: "600",
   },
   modalOverlay: {
     flex: 1,

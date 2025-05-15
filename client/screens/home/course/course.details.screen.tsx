@@ -131,16 +131,27 @@ export default function CourseDetailScreen() {
   // Kiểm tra trạng thái mua khóa học từ user context
   const checkPurchaseStatus = useCallback(() => {
     if (user && user.courses && courseId) {
+      console.log("Checking purchase status for course:", courseId);
+      console.log("User courses:", user.courses);
+
       const isPurchased = user.courses.some(
         (course) => course.courseId === courseId
       );
-      console.log("Kiểm tra khóa học đã mua:", {
-        courseId,
-        isPurchased,
-        userCourses: user.courses,
-      });
+
+      console.log("Is course purchased?", isPurchased);
+      console.log("Course ID:", courseId);
+      console.log(
+        "User courses IDs:",
+        user.courses.map((course) => course.courseId)
+      );
+
       setCheckPurchased(isPurchased);
     } else {
+      console.log("Missing data for purchase check:", {
+        hasUser: !!user,
+        hasCourses: !!(user && user.courses),
+        courseId,
+      });
       setCheckPurchased(false);
     }
   }, [user, courseId]);
@@ -913,6 +924,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cartButton: {
+    backgroundColor: "#009990",
     paddingVertical: 16,
     borderRadius: 8,
     width: "100%",

@@ -272,8 +272,6 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     };
   }, [user?._id]);
 
-  console.log("user", user);
-
   return (
     <UserContext.Provider
       value={{
