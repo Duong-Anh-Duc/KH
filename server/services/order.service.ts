@@ -150,13 +150,18 @@ export const createMobileOrderService = async (data: CreateMobileOrderData) => {
   await cart.save();
   console.log("Giỏ hàng sau khi xóa:", cart);
 
-  console.log("Tạo thông báo cho người dùng...");
-  await NotificationModel.create({
-    userId: userId,
-    title: "Đơn Hàng Mới",
-    message: `Bạn đã đặt mua thành công ${coursesInCart.length} khóa học`,
-  });
-  console.log("Thông báo đã được tạo.");
+  console.log("Tạo thông báo cho từng khóa học");
+  for (const course of coursesInCart) {
+    await NotificationModel.create({
+      userId: userId,
+      title: "Đơn Hàng Mới",
+      message: `Bạn đã mua thành công khóa học "${course.courseName}"`,
+      courseId: course.courseId,
+      price: course.priceAtPurchase,
+      status: "unread",
+    });
+  }
+  console.log("Đã tạo thông báo cho tất cả khóa học.");
 
   // Gửi thông báo qua socket.io cho học viên
   io.to(userId).emit("orderSuccess", {
