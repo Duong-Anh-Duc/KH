@@ -17,7 +17,7 @@ const ContactBubble = () => {
 
   const handleEmail = async () => {
     const email = "ducytcg123456@gmail.com";
-    const subject = "Liên hệ từ EduBridge";
+    const subject = "Liên hệ từ chúng tôi";
     const body = "Chào bạn, tôi cần hỗ trợ...";
 
     const emailUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;

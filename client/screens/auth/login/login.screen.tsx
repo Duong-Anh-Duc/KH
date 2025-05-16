@@ -139,7 +139,7 @@ const LoginScreen = () => {
       <ScrollView>
         <Image style={styles.signInImage} source={require('@/assets/sign-in/sign_in.png')} />
         <Text style={[styles.welcomeText, { fontFamily: "Raleway_700Bold" }]}>Chào Mừng Bạn Trở Lại!</Text>
-        <Text style={styles.learningText}>Đăng nhập vào tài khoản EduBridge của bạn</Text>
+        <Text style={styles.learningText}>Đăng nhập vào tài khoản của bạn</Text>
         <View style={styles.inputContainer}>
           <View>
             <TextInput

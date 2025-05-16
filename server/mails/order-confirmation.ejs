@@ -133,20 +133,24 @@
           <td class="first-td">Số lượng</td>
           <td class="first-td">Giá</td>
         </tr>
-        <tr>
-          <td class="second-td">
-            <%= order.name %>
-          </td>
-          <td class="second-td">1</td>
-          <td class="second-td">$<%= order.price %>
-          </td>
-        </tr>
+        <% order.courses.forEach(course=> { %>
+          <tr>
+            <td class="second-td">
+              <%= course.name %>
+            </td>
+            <td class="second-td">1</td>
+            <td class="second-td">
+              <%= course.price.toLocaleString('vi-VN') %> VNĐ
+            </td>
+          </tr>
+          <% }); %>
       </table>
 
       <table class="table-row" style="border-top: 1px solid #00000029;">
         <tr>
           <td class="col-2">Tạm tính:</td>
-          <td class="col-2">$<%= order.price %>
+          <td class="col-2">
+            <%= order.totalPrice.toLocaleString('vi-VN') %> VNĐ
           </td>
         </tr>
       </table>
@@ -154,7 +158,9 @@
       <table class="table-row" style="margin-top: -20px;">
         <tr>
           <td class="col-2"><strong>Tổng cộng:</strong></td>
-          <td class="col-2"><strong>$<%= order.price %></strong></td>
+          <td class="col-2"><strong>
+              <%= order.totalPrice.toLocaleString('vi-VN') %> VNĐ
+            </strong></td>
         </tr>
       </table>
     </div>
@@ -164,7 +170,7 @@
         Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ đội ngũ hỗ trợ tại
         <a href="mailto:support@becodemy.com">support@becodemy.com</a>
       </p>
-      <p>&copy; 2023 Elearning. Bản quyền thuộc về chúng tôi.</p>
+      <p>© 2025 Elearning. Bản quyền thuộc về chúng tôi.</p>
     </div>
   </div>
 </body>

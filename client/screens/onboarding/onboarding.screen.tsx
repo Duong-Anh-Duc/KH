@@ -50,7 +50,7 @@ const OnBoardingScreen = () => {
             style={styles.titleShape3}
           />
           <Text style={[styles.titleText, { fontFamily: 'Raleway_700Bold' }]}>
-            EduBridge
+            Hệ thống
           </Text>
         </View>
 

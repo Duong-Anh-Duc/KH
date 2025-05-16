@@ -273,7 +273,7 @@ export default function SignUpScreen() {
           Bắt đầu thôi!
         </Text>
         <Text style={styles.learningText}>
-          Tạo tài khoản để sử dụng đầy đủ tính năng của EduBridge
+          Tạo tài khoản để sử dụng đầy đủ tính năng của hệ thống
         </Text>
         <View style={styles.inputContainer}>
           <View>

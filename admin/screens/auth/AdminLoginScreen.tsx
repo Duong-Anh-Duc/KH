@@ -16,6 +16,7 @@ import {
   useFonts,
 } from "@expo-google-fonts/raleway";
 import { Entypo } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -29,7 +30,6 @@ import {
 } from "react-native";
 import { Toast } from "react-native-toast-notifications";
 import CustomInput from "../../components/CustomInput";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const AdminLoginScreen = () => {
   const [isPasswordVisible, setPasswordVisible] = useState(false);
@@ -170,7 +170,7 @@ const AdminLoginScreen = () => {
           Đăng Nhập Admin
         </Text>
         <Text style={authStyles.learningText}>
-          Đăng nhập vào tài khoản Admin EduBridge
+          Đăng nhập vào tài khoản Admin
         </Text>
         <View style={authStyles.inputContainer}>
           <View>
