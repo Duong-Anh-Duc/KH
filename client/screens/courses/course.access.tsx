@@ -30,7 +30,7 @@ export default function CourseAccessScreen() {
   );
   const [activeButton, setActiveButton] = useState("Về Khóa Học");
   const [isExpanded, setIsExpanded] = useState(false);
-  const [rating, setRating] = useState(1);
+  const [rating, setRating] = useState(0);
   const [review, setReview] = useState("");
   const [reviewAvailable, setReviewAvailable] = useState(false);
   const [refreshing, setRefreshing] = useState(false);

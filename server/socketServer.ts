@@ -16,7 +16,7 @@ export const initSocketServer = (server: http.Server) => {
     // Lấy userId từ query
     const userId = socket.handshake.query.userId as string;
     if (userId) {
-      socket.join(userId); // Người dùng tham gia room của riêng họ
+      socket.join(userId);
       console.log(`User ${userId} joined room ${userId}`);
     }
 

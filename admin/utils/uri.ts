@@ -1,2 +1,2 @@
 export const SERVER_URI =
-  process.env.SERVER_URI || "http://192.168.0.102:8001/api/v1";
+  process.env.SERVER_URI || "http://192.168.98.89:8001/api/v1";

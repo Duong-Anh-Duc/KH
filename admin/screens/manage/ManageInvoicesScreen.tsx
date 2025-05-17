@@ -2,11 +2,24 @@ import CustomHeader from "@/components/CustomHeader";
 import { dashboardStyles } from "@/styles/dashboard/dashboard.styles";
 import { theme } from "@/styles/theme";
 import api from "@/utils/api";
-import { Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
-import { Raleway_700Bold, useFonts } from '@expo-google-fonts/raleway';
+import {
+  Nunito_400Regular,
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+} from "@expo-google-fonts/nunito";
+import { Raleway_700Bold, useFonts } from "@expo-google-fonts/raleway";
 import { useNavigation } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Toast } from "react-native-toast-notifications";
 
 // Định nghĩa ParamList cho DrawerNavigator (giữ nguyên để tham khảo)
@@ -85,7 +98,10 @@ const ManageInvoicesScreen = () => {
       setInvoices(response.data.invoices || []);
     } catch (error: any) {
       console.error("Lỗi khi tải danh sách hóa đơn:", error);
-      Toast.show(error.response?.data?.message || "Không thể tải danh sách hóa đơn!", { type: "danger" });
+      Toast.show(
+        error.response?.data?.message || "Không thể tải danh sách hóa đơn!",
+        { type: "danger" }
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -114,11 +130,16 @@ const ManageInvoicesScreen = () => {
           onPress: async () => {
             try {
               await api.delete(`/delete-invoice/${invoiceId}`); // Đã bỏ /invoice
-              setInvoices(invoices.filter((invoice) => invoice.invoiceId !== invoiceId));
+              setInvoices(
+                invoices.filter((invoice) => invoice.invoiceId !== invoiceId)
+              );
               Toast.show("Xóa hóa đơn thành công!", { type: "success" });
             } catch (error: any) {
               console.error("Lỗi khi xóa hóa đơn:", error);
-              Toast.show(error.response?.data?.message || "Không thể xóa hóa đơn!", { type: "danger" });
+              Toast.show(
+                error.response?.data?.message || "Không thể xóa hóa đơn!",
+                { type: "danger" }
+              );
             }
           },
           style: "destructive",
@@ -142,13 +163,14 @@ Trạng thái: ${invoice.status}
 Ngày tạo: ${new Date(invoice.createdAt).toLocaleDateString()}
 Số khóa học: ${invoice.courses.length}
         `,
-        [
-          { text: "Đóng", style: "cancel" },
-        ]
+        [{ text: "Đóng", style: "cancel" }]
       );
     } catch (error: any) {
       console.error("Lỗi khi xem chi tiết hóa đơn:", error);
-      Toast.show(error.response?.data?.message || "Không thể xem chi tiết hóa đơn!", { type: "danger" });
+      Toast.show(
+        error.response?.data?.message || "Không thể xem chi tiết hóa đơn!",
+        { type: "danger" }
+      );
     }
   };
 
@@ -156,22 +178,33 @@ Số khóa học: ${invoice.courses.length}
   const renderInvoiceItem = ({ item }: { item: Invoice }) => (
     <View style={styles.invoiceCard}>
       <View style={styles.invoiceInfo}>
-        <Text style={styles.invoiceTitle}>
-          Mã hóa đơn: {item.invoiceId}
-        </Text>
+        <Text style={styles.invoiceTitle}>Mã hóa đơn: {item.invoiceId}</Text>
         <Text style={styles.invoiceDetails}>
           Người dùng: {item.userName} ({item.userEmail})
         </Text>
         <Text style={styles.invoiceDetails}>
           Tổng tiền: {item.totalPrice} VNĐ
         </Text>
-        <Text style={[styles.invoiceDetails, { color: item.status === "Completed" ? theme.colors.success : theme.colors.error }]}>
+        <Text
+          style={[
+            styles.invoiceDetails,
+            {
+              color:
+                item.status === "Completed"
+                  ? theme.colors.success
+                  : theme.colors.error,
+            },
+          ]}
+        >
           Trạng thái: {item.status}
         </Text>
       </View>
       <View style={styles.invoiceActions}>
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: theme.colors.secondary }]}
+          style={[
+            styles.actionButton,
+            { backgroundColor: theme.colors.secondary },
+          ]}
           onPress={() => handleViewInvoice(item.invoiceId)}
         >
           <Text style={styles.actionButtonText}>Xem</Text>

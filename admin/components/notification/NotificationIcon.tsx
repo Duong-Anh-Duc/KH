@@ -87,7 +87,7 @@ const NotificationIcon = () => {
         const accessToken = await AsyncStorage.getItem("access_token");
         const userId = await AsyncStorage.getItem("user_id"); // Make sure you store user_id when logging in
 
-        const socket = io("http://192.168.0.102:8001", {
+        const socket = io("http://192.168.98.89:8001", {
           transports: ["websocket"],
           auth: {
             token: accessToken,

@@ -316,11 +316,11 @@ export const addReviewService = async (
   await course.save();
   await redis.set(courseId, JSON.stringify(course), "EX", 604800);
 
-  await NotificationModel.create({
-    user: user._id,
-    title: "Đánh giá mới đã được nhận",
-    message: `${user.name} đã đưa ra một đánh giá trong ${course.name}`,
-  });
+  // await NotificationModel.create({
+  //   user: user._id,
+  //   title: "Đánh giá mới đã được nhận",
+  //   message: `${user.name} đã đưa ra một đánh giá trong ${course.name}`,
+  // });
 
   return course;
 };
